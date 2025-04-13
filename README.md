@@ -4,7 +4,7 @@ I wrote them because I was bored
 To easily access scripts I like softlink them to the bin folder.
 
 ```bash
-sudo ln -s lofi.sh /usr/local/bin/lofi
+sudo ln -s $(pwd)/lofi.sh /usr/local/bin/lofi
 ```
 
 # Description

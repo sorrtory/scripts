@@ -9,6 +9,9 @@ sudo ln -s $(pwd)/lofi.sh /usr/local/bin/lofi
 
 # Description
 
-## Lofi.sh
-Launch a lofi girl from the console via mpv
+## lofi.sh
+Launch a lofi girl from the console via mpv.
 
+
+## download_m3u.sh
+Convert m3u files into mp3 files by downloading them with yt-dlp.

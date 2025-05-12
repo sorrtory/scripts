@@ -15,3 +15,6 @@ Launch a lofi girl from the console via mpv.
 
 ## download_m3u.sh
 Convert m3u files into mp3 files by downloading them with yt-dlp.
+
+## commit_info.sh
+Usefull info about commits including commit size and nice output in general.

@@ -12,7 +12,6 @@ sudo ln -s $(pwd)/lofi.sh /usr/local/bin/lofi
 ## lofi.sh
 Launch a lofi girl from the console via mpv.
 
-
 ## download_m3u.sh
 Convert m3u files into mp3 files by downloading them with yt-dlp.
 
@@ -24,3 +23,6 @@ Used by hyprland to send a beep and a dunst notification on fn-key volume change
 
 ## hypr_lockscreen.sh [BROKEN]
 Experimental screensaver on hyprlocker
+
+## cutname.sh
+Trims the file name from the end with the specified string in a directory

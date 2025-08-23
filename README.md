@@ -2,17 +2,16 @@
 
 <p>
 I wrote them because I was bored and silly a little like
-<img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="64" height="64" style="border-radius: 50%;">
+<img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="25" height="25">
 </p>
 
 To easily access scripts I like to softlink them inside the bin folder:
+I also wrote [`link.sh`](#linksh--bootstrap) to simplify this.
 
 ```bash
 # e.g. lofi.sh to run it anywhere I want just with "lofi"
 sudo ln -s $(pwd)/lofi.sh /usr/local/bin/lofi
 ```
-
-See also [`link.sh`](#linksh--bootstrap) for this.
 
 ## Description
 
@@ -40,8 +39,13 @@ The result is intended to be a PAT for github secrets repo, so it clones it
 
 ### link.sh | Bootstrap
 
-Help to create a symlink to configuration files, etc. Automate backups on collision.
-Can be used with --dry
+Help to create a symlink to configuration files, etc.
+Can do backups on filename collision.
+Create a softlink like "\<from> [\<to>]"
+
+Can be used with --dry, --bin (cuts extension for scripts), --home.
+
+See `./link.sh --help`
 
 ### install.sh | Bootstrap
 
@@ -51,6 +55,8 @@ Read settings from install.conf and autoinstall tons of ubuntu software.
 Has some features like starting a lxd+wireguard container and adding it to firefox proxy conf,
 setting up ssh key for system, installation checks, linking configs (using `link.sh`),
 gnome configuration (for my preferences)
+
+See `./install.sh --help`
 
 #### Improvements
 

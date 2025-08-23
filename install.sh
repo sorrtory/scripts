@@ -13,7 +13,7 @@ set -euo pipefail
 ##### Configuration #####
 #########################
 
-CONFIG="install.conf"
+CONFIG="$HOME/Documents/scripts/install.conf"
 
 # Logging functions
 

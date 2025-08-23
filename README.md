@@ -39,8 +39,8 @@ The result is intended to be a PAT for github secrets repo, so it clones it
 
 ### link.sh | Bootstrap
 
-Help to create a symlink to configuration files, etc.
-Can do backups on filename collision.
+Help to create a symlink to configuration files, etc. \
+Can do backups on filename collision. \
 Create a softlink like "\<from> [\<to>]"
 
 Can be used with --dry, --bin (cuts extension for scripts), --home.
@@ -51,7 +51,7 @@ See `./link.sh --help`
 
 > `get_secrets.sh` should probably be used at first
 
-Read settings from install.conf and autoinstall tons of ubuntu software.
+Read settings from `install.conf` and autoinstall tons of ubuntu software.
 Has some features like starting a lxd+wireguard container and adding it to firefox proxy conf,
 setting up ssh key for system, installation checks, linking configs (using `link.sh`),
 gnome configuration (for my preferences)

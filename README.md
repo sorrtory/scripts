@@ -1,7 +1,7 @@
 # Scripts
 I wrote them because I was silly and bored a little
-<p align="right">
-    <img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="64" height="64" style="border-radius: 90%;">
+<p>
+<img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="64" height="64" style="border-radius: 50%;">
 </p>
 
 To easily access scripts I like to softlink them to the bin folder:

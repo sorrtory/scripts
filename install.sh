@@ -7,24 +7,13 @@
 # -u: Treat unset variables as an error and exit immediately.
 # -o pipefail: The return value of a pipeline is the status of the last command 
 # to exit with a non-zero status, or zero if all commands in the pipeline exit successfully.
-set -aeuo pipefail
+set -euo pipefail
 
-##################
-##### Config #####
-##################
+#########################
+##### Configuration #####
+#########################
 
-if [ ! -f "install.conf" ]; then
-	echo "!!!!!!!!!! WARNING !!!!!!!!!!!"
-	echo "!!! install.conf not found !!!"
-	echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-	echo "I have no idea what will happen next"
-	read -p "Continue anyway? [y/N]: " answer
-	if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-		echo "Fine. Exiting."
-		exit 1
-	fi
-fi
-
+CONFIG="install.conf"
 
 # Logging functions
 
@@ -50,35 +39,37 @@ print_help() {
 Usage: $0 [OPTIONS]
 
 This is a bootstrap script that automates installation and configuration
-It is planned to use this on Ubuntu
+$0 is planned to be used with install.conf on Ubuntu
 https://github.com/sorrtory/scripts?tab=readme-ov-file#installsh
 
 Options:
-  install           Install all packages, snaps, and special packages.
-  setup             Run all setup steps (GNOME, SSH key, repo clone, configs, external proxy).
-  snaps             Installs Snap packages listed in the SNAP_PKGS dictionary at the top of the script.
-                    You can edit SNAP_PKGS to add or remove snap packages.
-  sublime           Installs Sublime Text and Sublime Merge.
-  external-proxy    Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use the proxy.
-  chrome            Installs Google Chrome.
-  code              Installs Visual Studio Code and MesloLGS NF fonts.
-  dbeaver           Installs DBeaver CE.
-  spotify           Installs Spotify.
-  docker            Installs Docker CE and related components.
-  golang            Installs the latest Go and updates PATH.
-  ssh-key           Sets up SSH key for GitHub. Starts ssh-agent
-  clone-repos       Clones repositories listed in REPOS_TO_CLONE (edit this variable to change repos).
-  configs           Links configuration files using link.sh. Must be run from the directory containing link.sh.
-  gnome             Applies GNOME desktop customizations and installs extensions.
-  pkgs              Installs APT packages listed in PKGS (edit this variable to change packages).
-  check             Default. Runs system checks for installed packages, snaps, special packages, clones, and proxy.
-  help              Show this help message.
+	all               Install all packages, snaps, and special packages.
+	chrome            Installs Google Chrome.
+	clone-repos       Clones repositories listed in REPOS_TO_CLONE (edit this variable to change repos).
+	code              Installs Visual Studio Code and MesloLGS NF fonts.
+	configs           Links configuration files using link.sh. Must be run from the directory containing link.sh.
+	check             Default. Runs system checks for installed packages, snaps, special packages, clones, and proxy.
+	dbeaver           Installs DBeaver CE.
+	docker            Installs Docker CE and related components.
+	external-proxy    Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use the proxy.
+	gnome             Applies GNOME desktop customizations and installs extensions.
+	golang            Installs the latest Go and updates PATH.
+	help              Show this help message.
+	pkgs              Installs APT packages listed in PKGS (edit this variable to change packages).
+	setup             Run all setup steps (GNOME, SSH key, repo clone, configs, external proxy).
+	snaps             Installs Snap packages listed in the SNAP_PKGS dictionary
+	spotify           Installs Spotify.
+	ssh-key           Sets up SSH key for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
+	sublime           Installs Sublime Text and Sublime Merge.
 
 Environment (from install.conf):
+	--config               CONFIG (path to config file)
 	--email                EMAIL (GitHub noreply email)
 	--github               GITHUB (GitHub SSH URL)
 	--github-key           GITHUB_KEY (SSH key path)
-	--vpn-profile          VPN_PROFILE (default VPN profile)
+	--links                LINKS (list of source:destination pairs for linking)
+	--vpn-profiles-folder  VPN_PROFILES_FOLDER (folder with VPN profiles)
+	--vpn-default-profile  VPN_DEFAULT_PROFILE (default VPN profile)
 	--vpn-container        VPN_CONTAINER_NAME (LXD container for proxy)
 	--install-cmd          INSTALL_CMD (apt install command)
 	--update-cmd           UPDATE_CMD (apt update command)
@@ -93,15 +84,15 @@ Environment (from install.conf):
 I recommend to create install.conf before using this script
 
 Examples:
-  $0 --pkgs=(git, ) # can't use lists . But I want a general install script like ubuntu/arch install code and this script detects distro and selects the algo dynamically
-  $0 install
-  $0 setup
-  $0 snaps
+  $0 --pkgs=(git, )    # Nope, can't use lists. Use install.conf
+  $0 check             # Check everything
+  $0 all               # Install everything
+  $0 setup             # Run all setup steps
+  $0 link              # Link configuration files
+  $0 ssh-key           # Set up SSH key for GitHub
 EOF
 }
-# TODO: TThis is shit and I'm too tired to fix it now
-## This GPT shit should source install.conf and overwrite it with --params
-# Load environment variables from install.conf unless overridden by command-line
+## Source install.conf and overwrite it with provided --<var>=<value> args
 declare -A ENV_OVERRIDES
 
 # Parse environment variable overrides from command-line arguments
@@ -113,9 +104,20 @@ for arg in "$@"; do
 	fi
 done
 
-# Source install.conf if it exists
-if [ -f "install.conf" ]; then
-	. install.conf
+# Load environment variables from config
+if [ -f "$CONFIG" ]; then
+	source "$CONFIG"
+else
+	echo "!!!!!!!!!! WARNING !!!!!!!!!!!"
+	echo "!!! install.conf not found !!!"
+	echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+	echo "$CONFIG doesn't exist"
+	echo "I have no idea what will happen next"
+	read -p "Continue anyway? [y/N]: " answer
+	if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+		echo "Fine. Exiting."
+		exit 1
+	fi
 fi
 
 # Override variables with command-line values
@@ -127,22 +129,35 @@ done
 
 # Remove env overrides from positional parameters
 set -- $(printf '%s\n' "$@" | grep -vE '^--[a-zA-Z0-9_-]+=.*$')
-## end of GPT shit
 
-## Check config
+### Check config
 
-if [ -z "$GITHUB" ]; then
-	echo "GITHUB isn't set. Can't do clones then"
+# Check all required config variables
+missing_vars=()
+[ -z "${EMAIL:-}" ] && missing_vars+=("EMAIL (--email)")
+[ -z "${GITHUB:-}" ] && missing_vars+=("GITHUB (--github)")
+[ -z "${GITHUB_KEY:-}" ] && missing_vars+=("GITHUB_KEY (--github-key)")
+[ -z "${LINKS:-}" ] && missing_vars+=("LINKS (--links)")
+[ -z "${VPN_PROFILES_FOLDER:-}" ] && missing_vars+=("VPN_PROFILES_FOLDER (--vpn-profiles-folder)")
+[ -z "${VPN_DEFAULT_PROFILE:-}" ] && missing_vars+=("VPN_DEFAULT_PROFILE (--vpn-default-profile)")
+[ -z "${VPN_CONTAINER_NAME:-}" ] && missing_vars+=("VPN_CONTAINER_NAME (--vpn-container)")
+[ -z "${INSTALL_CMD:-}" ] && missing_vars+=("INSTALL_CMD (--install-cmd)")
+[ -z "${UPDATE_CMD:-}" ] && missing_vars+=("UPDATE_CMD (--update-cmd)")
+[ -z "${ADD_REPO_CMD:-}" ] && missing_vars+=("ADD_REPO_CMD (--add-repo-cmd)")
+[ "${#PKG_REPOS[@]}" -eq 0 ] && missing_vars+=("PKG_REPOS (--pkg-repos)")
+[ "${#PKGS[@]}" -eq 0 ] && missing_vars+=("PKGS (set in install.conf)")
+[ "${#CUSTOM_LAUNCHERS[@]}" -eq 0 ] && missing_vars+=("CUSTOM_LAUNCHERS (set in install.conf)")
+[ "${#SNAP_PKGS[@]}" -eq 0 ] && missing_vars+=("SNAP_PKGS (set in install.conf)")
+[ "${#REPOS_TO_CLONE[@]}" -eq 0 ] && missing_vars+=("REPOS_TO_CLONE (set in install.conf)")
+[ "${#SPECIAL_PKGS[@]}" -eq 0 ] && missing_vars+=("SPECIAL_PKGS (set in install.conf)")
+
+if [ "${#missing_vars[@]}" -gt 0 ]; then
+	echo "WARNING: The following required config variables are missing:"
+	for var in "${missing_vars[@]}"; do
+		echo "  $var"
+	done
+	echo "Some features may not work correctly. Please set these in install.conf or via command line."
 fi
-
-if [ ! -f "$GITHUB_KEY" ]; then
-	echo "GITHUB_KEY isn't set. Computer is likely to has no access to clones"
-fi
-
-
-# TODO: ...
-
-
 
 ###################
 ##### Scripts #####
@@ -151,7 +166,9 @@ fi
 function link_configs() {
 	info_start "Linking configs"
 	if [[ -x "$(dirname "$0")/link.sh" ]]; then
-		"$(dirname "$0")/link.sh"
+		for link in "${LINKS[@]}"; do
+			"$(dirname "$0")/link.sh" "$link"
+		done
 	else
 		info_bad "link.sh not found or not executable"
 	fi
@@ -160,6 +177,9 @@ function link_configs() {
 
 function do_check() {
 	info_start "Running system checks ..."
+	detect_distro
+	echo ""
+	
 	local all_ok clones_ok proxy_ok pkgs_ok snap_pkgs_ok special_pkgs_ok
 	all_ok="OK"
 	clones_ok="OK"
@@ -190,9 +210,9 @@ function do_check() {
 	info_start "Check externalProxy"
 	if lxc info $VPN_CONTAINER_NAME >> /dev/null; then
 		local host_ip
-		host_ip=$(curl 2ip.ru)
+		host_ip=$(curl -s 2ip.ru)
 		local container_ip
-		container_ip=$(lxc exec $VPN_CONTAINER_NAME -- curl 2ip.ru)
+		container_ip=$(lxc exec $VPN_CONTAINER_NAME -- curl -s 2ip.ru)
 		if [ "$host_ip" != "$container_ip" ]; then
 			info_ok "$VPN_CONTAINER_NAME is running fine"
 		else
@@ -208,7 +228,7 @@ function do_check() {
 
 	info_start "Check installed packages"
 	for cmd in "${PKGS[@]}" ; do
-		if dpkg -s "$cmd" &> /dev/null; then
+		if dpkg-query -W "$cmd" &> /dev/null; then
 			info_ok "$cmd is installed"
 		else
 			info_bad "$cmd is not installed"
@@ -250,8 +270,6 @@ function do_check() {
 		all_ok="BAD"
 	fi
 	info_end "System check result [${all_ok}]"
-
-	detect_distro
 }
 	
 function detect_distro() {
@@ -262,21 +280,21 @@ function detect_distro() {
 		case "$ID" in
 			ubuntu|debian)
 				# INSTALL_CMD="sudo apt install -y"
-				echo "Detected Ubuntu/Debian"
+				info_ok "Detected Ubuntu/Debian"
 				;;
 			arch)
 				INSTALL_CMD="sudo pacman -S --noconfirm"
 				PKGS=(openssh os-prober "${PKGS[@]}")
-				echo "Detected Arch Linux. Exiting."
+				info_bad "Detected Arch Linux. Exiting."
 				exit 1
 				;;
 			fedora)
 				INSTALL_CMD="sudo dnf install -y"
-				echo "Detected Fedora. Exiting."
+				info_bad "Detected Fedora. Exiting."
 				exit 1
 				;;
 			*)
-				echo "Unsupported distro: $ID"
+				info_bad "Unsupported distro: $ID. Exiting."
 				exit 1
 				;;
 		esac
@@ -387,7 +405,7 @@ function install_chrome() {
 	info_start "Installing Google Chrome"
 	wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/google.gpg
 	echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-	sudo apt-get update
+	$UPDATE_CMD
 
 	$INSTALL_CMD google-chrome-stable
 	info_end "Google Chrome installed"
@@ -488,10 +506,13 @@ function setup_external_proxy() {
 
 	EXTERNAL_PROXY_IP=$(ip -o -4 addr show $(lxc profile show default | grep network | awk '{print $2}') | awk '{print $4}' | cut -d/ -f1 | cut -d\. -f1,2,3 | xargs -I{} echo "{}.254")
 
-
 	lxc launch ubuntu:24.04 $VPN_CONTAINER_NAME
 	sudo lxc config device override $VPN_CONTAINER_NAME eth0 ipv4.address=$EXTERNAL_PROXY_IP && lxc stop $VPN_CONTAINER_NAME && lxc start $VPN_CONTAINER_NAME
-	lxc file push -p ~/Documents/configs/wireguard/$VPN_PROFILE.conf $VPN_CONTAINER_NAME/etc/wireguard/
+
+	# Clone VPN profiles inside a container
+	for profile in $VPN_PROFILES_FOLDER/*.conf; do
+		lxc file push -p "$profile" $VPN_CONTAINER_NAME/etc/wireguard/
+	done
 
 	lxc exec $VPN_CONTAINER_NAME -- apt update -y && lxc exec $VPN_CONTAINER_NAME -- apt upgrade -y 
 	lxc exec $VPN_CONTAINER_NAME -- apt install -y squid wireguard
@@ -499,7 +520,8 @@ function setup_external_proxy() {
 	http_port 3128
 	coredump_dir /var/spool/squid
 	logfile_rotate 0" > /etc/squid/squid.conf
-	lxc exec $VPN_CONTAINER_NAME systemctl enable --now wg-quick@$VPN_PROFILE
+	# Ennable default profile
+	lxc exec $VPN_CONTAINER_NAME systemctl enable --now wg-quick@$VPN_DEFAULT_PROFILE
 	lxc restart $VPN_CONTAINER_NAME
 
 	# Wait for the container to be ready
@@ -712,74 +734,74 @@ function install_full() {
 }
 
 function setup_full() {
+	link_configs
 	setup_gnome
 	setup_ssh_key
 	clone_repos
-	link_configs 
 	setup_external_proxy
 }
 
 function main() {
 	while [[ $# -gt 0 ]]; do
 		case "${1:-}" in
-			--install)
+			all)
 				install_full
 				exit 0
 				;;
-			--setup)
+			setup)
 				setup_full
 				;;
-			--snaps)
+			snaps)
 				install_snaps
 				;;
-			--configs)
+			configs)
 				link_configs
 				;;
-			--external-proxy)
+			external-proxy)
 				setup_external_proxy
 				;;
-			--docker)
+			docker)
 				install_docker
 				;;
-			--golang)
+			golang)
 				install_golang
 				;;
-			--sublime)
+			sublime)
 				install_sublime
 				;;
-			--chrome)
+			chrome)
 				install_chrome
 				;;
-			--code)
+			code)
 				install_code
 				;;
-			--dbeaver)
+			dbeaver)
 				install_dbeaver
 				;;
-			--spotify)
+			spotify)
 				install_spotify
 				;;
-			--ssh-key)
+			ssh-key)
 				setup_ssh_key
 				;;
-			--clone-repos)
+			clone-repos)
 				clone_repos
 				;;
-			--gnome)
+			gnome)
 				setup_gnome
 				;;
-			--pkgs)
+			pkgs)
 				install_pkgs
 				;;
-			--check|"" )
+			check|"" )
 				do_check
 				;;
-			--help|-h)
+			help|-h)
 				print_help
 				exit 0
 				;;
 			*)
-				echo "Usage: $0 [--help|--snaps|--git|--configs|--external-proxy|--golang|--sublime|--chrome|--code|--dbeaver|--spotify|--ssh-key|--clone-repos|--gnome|--pkgs|--check]"
+				echo "Unknown option: $1. See $0 help"
 				exit 1
 				;;
 		esac

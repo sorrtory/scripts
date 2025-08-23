@@ -1,31 +1,12 @@
 #!/usr/bin/bash
 
-# This script creates symlinks for programs' config into .config
-# It must be run from configs/ folder (i.e. ./link.sh) because it uses pwd
-
-# TODO: move .config links logic to install.sh
-# this script can help to link /scripts or maybe even nothing
-# maybe add --only <program> to link only one program config
+# This script helps to create symlinks for programs and configs
+# It must be run from <configs> folder (i.e. ./link.sh) because it uses pwd
 
 if [ "$0" != "./link.sh" ]; then
     echo "Creating symlinks requires running from the same folder"
     exit 1
 fi
-
-ARCH_PROGRAMS=(
-    ".config/dunst"
-    ".config/hypr"
-    ".config/kitty"
-    ".config/wofi"
-)
-
-CROSS_PROGRAMS=(
-    ".config/mpv"
-	".vimrc"
-	".zshrc"
-	".ssh"
-    "Documents/Knowledge-Database/.obsidian"
-)
 
 # Create .config directory if not exists
 if [ ! -d "$HOME/.config" ]; then
@@ -70,80 +51,120 @@ check_existing_config() {
     done
 }
 
-# Base function to link configs from source to destination
+# Main function to link configs from source to destination
 link_config() {
     local from="$1"
+    local to="$2"
+
+    # Check FROM doesn't exist
     if [ ! -e "$from" ]; then
         echo "Source config $from does not exist"
         return 1
     fi
-    local to="$2"
+
+    # Ensure parent directory for TO exists
+    local to_dir
+    to_dir="$(dirname "$to")"
+    if [ ! -d "$to_dir" ]; then
+        echo "Creating parent directory $to_dir"
+        mkdir -p "$to_dir"
+    fi
+
+    # Check TO already exists, prompt for back up
     check_existing_config "$to" || return 0
-    echo "Linking: $to"
-    ln -s "$from" "$to"
+
+    echo -n "Linking: $to ... "
+    if [ $DRY_RUN -eq 1 ]; then
+        echo "[DRY RUN] ln -s $from $to"
+    else
+        local status
+        if [ $SUDO -eq 1 ]; then
+            status=$(sudo ln -s "$from" "$to")
+        else
+            status=$(ln -s "$from" "$to")
+        fi
+        if [ $status -eq 0 ]; then
+            echo "[OK]"
+        else
+            echo "[ERROR]"
+        fi
+    fi
 }
-
-
-# Function to link Arch-only configs
-link_arch_configs() {
-    local programs=("${ARCH_PROGRAMS[@]}")
-    echo "Linking Arch-only configs..."
-    for p in "${programs[@]}"; do
-        link_config "$(pwd)/$p" "$HOME/$p"
-    done
-}
-
-# Function to link cross-distro configs (default)
-link_default_configs() {
-    local programs=("${CROSS_PROGRAMS[@]}")
-    echo "Linking cross-distro configs (default)..."
-    for p in "${programs[@]}"; do
-        link_config "$(pwd)/$p" "$HOME/$p"
-    done
-}
-
-
 
 # Parse script arguments and call appropriate function
 SKIP_ALL=0
+DRY_RUN=0
+SUDO=0
 MODE="default"
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
+# Parse options first
+for arg in "$@"; do
+    case $arg in
         --skip)
             SKIP_ALL=1
             shift
-            ;;
-        --arch)
-            MODE="arch"
+        ;;
+        -b|--bin)
+            MODE="bin"
             shift
-            ;;
-        --help|-h)
-            echo "Usage: ./link.sh [--arch] [--skip] [--help]"
-            echo "  --arch    Link Arch-only configs"
-            echo "  --skip    Skip existing configs without prompt"
-            echo "  --help    Show this help message"
+        ;;
+        --home)
+            MODE="home"
+            shift
+        ;;
+        --dry)
+            DRY_RUN=1
+            shift
+        ;;
+        --sudo)
+            SUDO=1
+            shift
+        ;;
+        -h|--help)
+            echo "Usage: ./link.sh [--skip] [--help] [-b|--bin] <from> [<to>]"
+            echo "This program safely links <from> to <to> (defaults to ~/.config)"
+            echo "Remember that creating symlinks requires running from the same folder"
+            echo "Because pwd is used to determine the source path"
+            echo ""
+            echo "Options:"
+            echo "  --dry    Do not create symlink, only print commands"
+            echo "  --sudo   Create symlink with sudo"
+            echo "  --bin    Link <from> to /usr/local/bin/ and cut the extension. Ignored if <to> is passed"
+            echo "  --home   Link <from> to $HOME directly (not in .config). Ignored if <to> is passed"
+            echo "  --skip   Skip existing <to> without prompt"
+            echo "  --help   Show this help message"
             exit 0
-            ;;
-        --only)
-            MODE="only"
-            ONLY_PROG="$2"
-            if [ -z "$ONLY_PROG" ] || [ ! -e "$(pwd)/$ONLY_PROG" ]; then
-                echo "Error: --only requires a program path argument."
-                exit 1
-            fi
-            shift 2
-            ;;
-        *)
-            shift
-            ;;
+        ;;
     esac
 done
 
-if [ "$MODE" = "arch" ]; then
-    link_arch_configs
-elif [ "$MODE" = "only" ]; then
-    link_config "$(pwd)/$ONLY_PROG" "$HOME/$ONLY_PROG"
-else
-    link_default_configs
+if [ -z "$1" ]; then
+    echo "Error: Missing <from>"
+    echo "Usage: ./link.sh [--skip] [--help] <from> [<to>]"
+    exit 1
 fi
+
+# Determine the absolute path for FROM
+if [[ "$1" == "$PWD"* ]]; then
+    FROM="$1"
+else
+    FROM="$PWD/$1"
+fi
+
+# If <to> is not specified, default to ~/.config/<from>
+if [ -n "$2" ]; then
+    TO="$2"
+    # Append $HOME if needed
+    if [[ "$TO" != /* ]]; then
+        TO="$HOME/$TO"
+    fi
+else
+    TO="$HOME/.config/$(basename "$1")"
+    if [ "$MODE" = "bin" ]; then
+        TO="/usr/local/bin/$(basename "$1" | sed 's/\.[^.]*$//')"
+    elif [ "$MODE" = "home" ]; then
+        TO="$HOME/$(basename "$1")"
+    fi
+fi
+
+link_config "$FROM" "$TO"

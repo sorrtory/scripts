@@ -1,8 +1,7 @@
 # Scripts
 
-I wrote them because I was bored and sillyb a little like
-
 <p>
+I wrote them because I was bored and silly a little like
 <img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="64" height="64" style="border-radius: 50%;">
 </p>
 
@@ -36,12 +35,13 @@ Show usefull info about commits including commit size and nice output in general
 
 ### get_secrets.sh | Bootstrap
 
-Download byte data from pastebin, automate the decryption process.
+Download byte data from pastebin, decrypts with a passpharase.
 The result is intended to be a PAT for github secrets repo, so it clones it
 
 ### link.sh | Bootstrap
 
-Help to create symnlinks to configuration files, etc.
+Help to create a symlink to configuration files, etc. Automate backups on collision.
+Can be used with --dry
 
 ### install.sh | Bootstrap
 
@@ -49,8 +49,13 @@ Help to create symnlinks to configuration files, etc.
 
 Read settings from install.conf and autoinstall tons of ubuntu software.
 Has some features like starting a lxd+wireguard container and adding it to firefox proxy conf,
-setting up ssh key for system, installation checks, linking configs (using link.sh),
+setting up ssh key for system, installation checks, linking configs (using `link.sh`),
 gnome configuration (for my preferences)
+
+#### Improvements
+
+I want a general install script like whether on ubuntu/arch just `install code`
+and this script detects distro and selects the installation process automatically
 
 ### sharekey.sh | Util
 

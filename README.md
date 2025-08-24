@@ -34,6 +34,24 @@ Launch a lofi girl from the console via mpv.
 
 Show usefull info about commits including commit size and nice output in general.
 
+#### after_reboot.sh
+
+#### after_reboot.sh
+
+This script automates a simple "run once after reboot" workflow:
+
+1. **First run:**
+    - Prints "Hello, world!"
+    - Creates `/var/tmp/hello_after_reboot` marker file
+    - Installs a systemd service to run itself at next boot
+    - Initiates a reboot
+
+2. **After reboot:**
+    - Detects the marker file
+    - Prints "Hello again!"
+    - Removes the marker and disables/removes its systemd service
+    - Will not run automatically again
+
 ### Bootstrap
 
 #### bootstrap.sh

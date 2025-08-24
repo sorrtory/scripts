@@ -682,12 +682,13 @@ function setup_gnome() {
 	for ext in "${ADD_EXTENSIONS[@]}"; do
 		gnome-shell-extension-installer "$ext"
 	done
-	echo "Extensions are installed"
-
+	echo "Extensions are installed. You have to reboot now"
+	# TODO: add after_reboot.sh here, also lxd setup can be done with reboot too
 	for ext in "${!ADD_EXTENSIONS[@]}"; do
-		gnome-extensions enable "$ext"
+		# gnome-extensions enable $ext
+		echo "You should enable $ext: gnome-extensions enable $ext"
 	done
-	echo "Extensions are enabled"
+	echo "Extensions WAS NOT ENABLED. You have to reboot and do that manually"
 
 	echo "Configure them with extension-manager"
 	echo "You should better logout or reboot before proceeding"

@@ -13,7 +13,8 @@ echo "Cloning scripts repository"
 git clone https://github.com/sorrtory/scripts ~/Documents/scripts
 cd "$HOME/Documents/scripts" || exit 1
 
-export SAVED_PASTE_NUMBERS_FILE=shared_pat_nums.txt
+export SAVED_PASTE_NUMBERS_FILE="shared_pat_nums.txt"
+export TOKEN_FILE_NAME="secrets.token"
 if ./get_secrets.sh; then
     echo "Secrets cloned successfully."
 else
@@ -22,11 +23,26 @@ else
 fi
 
 echo "Deleting secret share"
-./sharekey.sh --secret ../secrets/pastebin.conf --link $SAVED_PASTE_NUMBERS_FILE delete
-rm $SAVED_PASTE_NUMBERS_FILE
-
-echo "Linking ssh"
-./link.sh --home Documents/secrets/.ssh
+./sharekey.sh --secret ../secrets/pastebin.conf --link "$SAVED_PASTE_NUMBERS_FILE" delete
+rm "$SAVED_PASTE_NUMBERS_FILE"
+rm "$TOKEN_FILE_NAME"
+rm "$TOKEN_FILE_NAME.gpg"
 
 echo "Installing packages"
-./install.sh 
+./install.sh check
+echo "You're free to install with install.sh"
+echo "Example flow: "
+echo "./install.sh all"
+echo "reboot"
+echo "./install.sh setup"
+echo "reboot"
+read -p "Do you want to run the install flow now? (y/N): " answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+    ./install.sh all
+    read -p "Do you want to reboot now? (y/N): " reboot_answer
+    if [[ "$reboot_answer" =~ ^[Yy]$ ]]; then
+        sudo reboot
+    fi
+else
+    echo "You can run './install.sh all' later to start the install flow."
+fi

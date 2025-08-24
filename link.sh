@@ -123,7 +123,7 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: ./link.sh [--skip] [--help] [-b|--bin] <from> [<to>]"
             echo "This program safely links <from> to <to> (defaults to ~/.config)"
-            echo "Remember that creating symlinks requires running from the same folder"
+            echo "Remember that creating symlinks is more reliable when running from the same folder"
             echo "Because pwd is used to determine the source path"
             echo ""
             echo "Options:"
@@ -140,15 +140,16 @@ done
 
 if [ -z "$1" ]; then
     echo "Error: Missing <from>"
-    echo "Usage: ./link.sh [--skip] [--help] <from> [<to>]"
+    echo "Usage: ./link.sh [--skip] [--help] [-b|--bin] <from> [<to>]"
+    echo "See: ./link.sh --help"
     exit 1
 fi
 
 # Determine the absolute path for FROM
-if [[ "$1" == "$PWD"* ]]; then
+if [[ "$1" == /* ]]; then
     FROM="$1"
 else
-    FROM="$PWD/$1"
+    FROM=$( realpath "$1"  ) && dirname "$FROM"
 fi
 
 # If <to> is not specified, default to ~/.config/<from>

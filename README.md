@@ -44,6 +44,8 @@ clone secrets using pastebin-shared PAT, cleans up and check the system.
 
 ```bash
 bash -c "$(wget -qO- https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/bootstrap.sh)"
+# OR with some help of short.io
+bash -c "$(wget -qO- https://go.sorrtory.ru/bootstrap.sh)"
 ```
 
 #### get_secrets.sh

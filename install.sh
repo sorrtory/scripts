@@ -623,6 +623,12 @@ function setup_ssh_key() {
 function setup_gnome() {
 	info_start "Setting up GNOME"
 
+	if ! command -v curl &> /dev/null; then
+		echo "ERROR: curl is not installed. Please install curl before continuing."
+		info_end "[Failed] GNOME setup: curl not installed"
+		return
+	fi
+
 	for cmd in "${GSETTINGS_CMDS[@]}"; do
     	echo "Running: $cmd"
     	eval "$cmd"
@@ -679,7 +685,7 @@ function setup_gnome() {
 	done
 	echo "Extensions are installed"
 
-	for ext in "${REMOVE_EXTENSIONS[@]}"; do
+	for ext in "${ADD_EXTENSIONS[@]}"; do
 		gnome-extensions enable "$ext"
 	done
 	echo "Extensions are enabled"

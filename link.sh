@@ -73,17 +73,16 @@ link_config() {
     # Check TO already exists, prompt for back up
     check_existing_config "$to" || return 0
 
-    echo -n "Linking: $to ... "
-    if [ $DRY_RUN -eq 1 ]; then
+    echo -n "Linking: $from to $to "
+    if [ "$DRY_RUN" -eq 1 ]; then
         echo "[DRY RUN] ln -s $from $to"
     else
-        local status
-        if [ $SUDO -eq 1 ]; then
-            status=$(sudo ln -s "$from" "$to")
+        if [ "$SUDO" -eq 1 ]; then
+            sudo ln -s "$from" "$to"
         else
-            status=$(ln -s "$from" "$to")
+            ln -s "$from" "$to"
         fi
-        if [ $status -eq 0 ]; then
+        if [ "$?" -eq 0 ]; then
             echo "[OK]"
         else
             echo "[ERROR]"

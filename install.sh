@@ -67,6 +67,8 @@ Environment (from install.conf) variables that can be overridden with --<var>=<v
 > WARNING: Can't pass any lists or spaces, use install.conf for it
 	--config               CONFIG (path to config file)
 	--email                EMAIL (GitHub noreply email)
+	--gsettings-cmds       GSETTINGS_CMDS (list of gsettings commands). Executes before extensions and keybindings
+	--add-extensions       ADD_EXTENSIONS (list of GNOME extensions to install)
 	--github               GITHUB (GitHub SSH URL)
 	--github-key           GITHUB_KEY (SSH key path)
 	--links                LINKS (list of source:destination pairs for linking)
@@ -79,7 +81,7 @@ Environment (from install.conf) variables that can be overridden with --<var>=<v
 	--add-repo-cmd         ADD_REPO_CMD (add-apt-repository command)
 	--pkg-repos            PKG_REPOS (list of package repositories)
 	--pkgs                 PKGS (list of packages to install)
-	--custom-launchers     CUSTOM_LAUNCHERS (custom keybindings)
+	--custom-launchers     CUSTOM_LAUNCHERS (custom gnome keybindings)
 	--snap-pkgs            SNAP_PKGS (snap packages)
 	--repos-to-clone       REPOS_TO_CLONE (GitHub repos to clone)
 	--special-pkgs         SPECIAL_PKGS (special install functions)
@@ -616,57 +618,10 @@ function setup_ssh_key() {
 function setup_gnome() {
 	info_start "Setting up GNOME"
 
-	## General ubuntu-gnome configuration
-
-	# Center new windows
-	gsettings set org.gnome.mutter center-new-windows true
-
-	# Set keyboard layout and input sources
-	gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'us'), ('xkb', 'ru')]"
-	gsettings set org.gnome.desktop.input-sources xkb-options "['grp:alt_shift_toggle']"
-
-	# Set dock position
-	gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
-	gsettings set org.gnome.shell.extensions.dash-to-dock show-show-apps-button false
-	gsettings set org.gnome.shell.extensions.dash-to-dock show-trash false
-	gsettings set org.gnome.shell.extensions.dash-to-dock always-center-icons true
-	
-	# Disable super+1.2.3... for dock launchers
-	# https://askubuntu.com/questions/968103/disable-the-default-app-key-supernum-functionality-on-ubuntu-17-10-and-later
-	# Switch to app looks useful. Let's try to keep it (the command bellow disables it)
-	# gsettings set org.gnome.shell.keybindings switch-to-application-1 [] # Repeat for 1-9
-	gsettings set org.gnome.shell.extensions.dash-to-dock hot-keys false
-
-	# Set dock Behaviour
-	gsettings set org.gnome.shell.extensions.dash-to-dock click-action 'minimize'
-	gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
-	gsettings set org.gnome.shell.extensions.dash-to-dock intellihide true
-	gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed false
-	gsettings set org.gnome.shell.extensions.dash-to-dock intellihide-mode "ALL_WINDOWS"
-	gsettings set org.gnome.shell.extensions.dash-to-dock extend-height true
-	# NOTE: There could be a problem with pressure sensitivity
-	# panel may require hard move to activate
-
-	# Set dock Transparency
-	gsettings set org.gnome.shell.extensions.dash-to-dock transparency-mode "DYNAMIC"
-	gsettings set org.gnome.shell.extensions.dash-to-dock customize-alphas true
-	gsettings set org.gnome.shell.extensions.dash-to-dock min-alpha 0.0
-	gsettings set org.gnome.shell.extensions.dash-to-dock max-alpha 0.8
-
-
-	## Keybindings
-
-	# Move window left/right
-	gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-left "['<Control><Super>Left']"
-	gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-right "['<Control><Super>Right']"
-
-	# Switch workspace left/right
-	gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-left "['<Control><Alt>Left']"
-	gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-right "['<Control><Alt>Right']"
-
-	# Close window
-	gsettings set org.gnome.desktop.wm.keybindings close "['<Super>q']"
-
+	for cmd in "${GSETTINGS_CMDS[@]}"; do
+    	echo "Running: $cmd"
+    	eval "$cmd"
+	done
 
 	# Custom programs launchers
 	# Custom keybinding for Firefox using variable
@@ -706,20 +661,25 @@ function setup_gnome() {
 	# blur my shell, clipboard indicator, hide top bar, 
 	# ubuntu appindicator, ubuntu dock, ubuntu tiling assistant are default
 
-	# This script is archived be careful
-	wget -O gnome-shell-extension-installer "https://github.com/brunelli/gnome-shell-extension-installer/raw/master/gnome-shell-extension-installer"
-	chmod +x gnome-shell-extension-installer
-	sudo mv gnome-shell-extension-installer /usr/bin/
-	gnome-shell-extension-installer 3193 # blur-my-shell
-	gnome-shell-extension-installer 779  # clipboard-indicator
-	gnome-shell-extension-installer 545  # hide-top-bar
+	# The gnome-shell-extension-installer script is archived be careful
+	if [ ! -f /usr/bin/gnome-shell-extension-installer ]; then
+		echo "Installing gnome-shell-extension-installer"
+		wget -O gnome-shell-extension-installer "https://github.com/brunelli/gnome-shell-extension-installer/raw/master/gnome-shell-extension-installer"
+		chmod +x gnome-shell-extension-installer
+		sudo mv gnome-shell-extension-installer /usr/bin/
+	fi
 
-	gnome-extensions enable blur-my-shell@aunetx
-	gnome-extensions enable clipboard-indicator@tudmotu.com
-	gnome-extensions enable hidetopbar@mathieu.bidon.ca
+	for ext in "${!ADD_EXTENSIONS[@]}"; do
+		gnome-shell-extension-installer "${ADD_EXTENSIONS[$ext]}"
+	done
+	echo "Extensions are installed"
 
-	echo "Extensions installed, configure them with"
-	echo "extension-manager"
+	for ext in "${REMOVE_EXTENSIONS[@]}"; do
+		gnome-extensions enable "$ext"
+	done
+	echo "Extensions are enabled"
+
+	echo "Configure them with extension-manager"
 	echo "You should better logout or reboot before proceeding"
 
 	info_end "GNOME setup complete"

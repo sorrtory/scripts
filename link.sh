@@ -149,8 +149,16 @@ fi
 if [[ "$1" == /* ]]; then
     FROM="$1"
 else
-    FROM=$( realpath "$1"  ) && dirname "$FROM"
+    if [ -e "$1" ]; then
+        FROM=$(realpath "$1")
+    else
+        if [ -e "$HOME/$1" ]; then
+            FROM=$(realpath "$HOME/$1")
+        fi
+        # If still not found, give up, it will be handled in link_config
+    fi
 fi
+
 
 # If <to> is not specified, default to ~/.config/<from>
 if [ -n "$2" ]; then

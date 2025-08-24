@@ -36,7 +36,7 @@ info_bad() {
 # Help section: Options from install.conf
 print_help() {
 		cat <<EOF
-Usage: $0 [OPTIONS]
+Usage: $0 [ENVIRONMENTS] [OPTION]
 
 This is a bootstrap script that automates installation and configuration
 $0 is planned to be used with install.conf on Ubuntu
@@ -59,15 +59,18 @@ Options:
 	setup             Run all setup steps (GNOME, SSH key, repo clone, configs, external proxy).
 	snaps             Installs Snap packages listed in the SNAP_PKGS dictionary
 	spotify           Installs Spotify.
+	link-ssh          Links SSH configuration files using link.sh and LINK_TO_SSH.
 	ssh-key           Sets up SSH key for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
 	sublime           Installs Sublime Text and Sublime Merge.
 
-Environment (from install.conf):
+Environment (from install.conf) variables that can be overridden with --<var>=<value> args:
+> WARNING: Can't pass any lists or spaces, use install.conf for it
 	--config               CONFIG (path to config file)
 	--email                EMAIL (GitHub noreply email)
 	--github               GITHUB (GitHub SSH URL)
 	--github-key           GITHUB_KEY (SSH key path)
 	--links                LINKS (list of source:destination pairs for linking)
+	--link-to-ssh          LINK_TO_SSH (link options for SSH config)
 	--vpn-profiles-folder  VPN_PROFILES_FOLDER (folder with VPN profiles)
 	--vpn-default-profile  VPN_DEFAULT_PROFILE (default VPN profile)
 	--vpn-container        VPN_CONTAINER_NAME (LXD container for proxy)
@@ -84,12 +87,16 @@ Environment (from install.conf):
 I recommend to create install.conf before using this script
 
 Examples:
-  $0 --pkgs=(git, )    # Nope, can't use lists. Use install.conf
-  $0 check             # Check everything
-  $0 all               # Install everything
-  $0 setup             # Run all setup steps
-  $0 link              # Link configuration files
-  $0 ssh-key           # Set up SSH key for GitHub
+  # Lists cannot be passed via command line, set them in install.conf
+  $0 --pkgs=(git, )    						# Nope, can't use lists. Use install.conf
+  $0 --link-ssh=~/.ssh/ed25519 link-ssh     # And this won't work either
+
+  $0 check             						# Check everything
+  $0 all               						# Install everything
+  $0 link-ssh          						# Link SSH configuration files
+  $0 setup             						# Run all setup steps
+  $0 configs           						# Link just configuration files
+  $0 ssh-key           						# Set up SSH key for GitHub
 EOF
 }
 ## Source install.conf and overwrite it with provided --<var>=<value> args
@@ -174,6 +181,18 @@ function link_configs() {
 		info_bad "link.sh not found or not executable"
 	fi
 	info_end "Linking configs done"
+}
+
+function link_ssh() {
+	# This is called separately from link_configs
+	# Because we need ssh key to clone private repos before linking configs
+	info_start "Linking SSH config"
+	if [[ -x "$(dirname "$0")/link.sh" ]]; then
+		"$(dirname "$0")/link.sh" $LINK_TO_SSH
+	else
+		info_bad "link.sh not found or not executable"
+	fi
+	info_end "Linking SSH config done"
 }
 
 function do_check() {
@@ -737,10 +756,11 @@ function install_full() {
 }
 
 function setup_full() {
-	link_configs
-	setup_gnome
+	link_ssh
 	setup_ssh_key
 	clone_repos
+	link_configs
+	setup_gnome
 	setup_external_proxy
 }
 
@@ -759,6 +779,9 @@ function main() {
 				;;
 			configs)
 				link_configs
+				;;
+			link-ssh)
+				link_ssh
 				;;
 			external-proxy)
 				setup_external_proxy

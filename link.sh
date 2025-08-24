@@ -1,12 +1,6 @@
 #!/usr/bin/bash
 
 # This script helps to create symlinks for programs and configs
-# It must be run from <configs> folder (i.e. ./link.sh) because it uses pwd
-
-if [ "$0" != "./link.sh" ]; then
-    echo "Creating symlinks requires running from the same folder"
-    exit 1
-fi
 
 # Create .config directory if not exists
 if [ ! -d "$HOME/.config" ]; then
@@ -73,7 +67,7 @@ link_config() {
     # Check TO already exists, prompt for back up
     check_existing_config "$to" || return 0
 
-    echo -n "Linking: $from to $to "
+    echo "Linking: $from to $to"
     if [ "$DRY_RUN" -eq 1 ]; then
         echo "[DRY RUN] ln -s $from $to"
     else
@@ -82,10 +76,11 @@ link_config() {
         else
             ln -s "$from" "$to"
         fi
+        # Careful with $?
         if [ "$?" -eq 0 ]; then
-            echo "[OK]"
+            echo "Linking: [OK]"
         else
-            echo "[ERROR]"
+            echo "Linking: [ERROR]"
         fi
     fi
 }

@@ -24,20 +24,32 @@ All script are likely to be easy to update, because configuration is always at t
 | Util      | Utility scripts for file operations |
 | Arch      | Scripts specific to Arch Linux      |
 
-### lofi.sh | Vibe
+### Vibe
+
+#### lofi.sh
 
 Launch a lofi girl from the console via mpv.
 
-### commit_info.sh | Vibe
+#### commit_info.sh
 
 Show usefull info about commits including commit size and nice output in general.
 
-### get_secrets.sh | Bootstrap
+### Bootstrap
+
+#### bootstrap.sh
+
+Convenient way to execute the following scripts
+
+```bash
+sh -c "$(wget -qO- https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/bootstrap.sh)"
+```
+
+#### get_secrets.sh
 
 Download byte data from pastebin, decrypts with a passpharase.
 The result is intended to be a PAT for github secrets repo, so it clones it
 
-### link.sh | Bootstrap
+#### link.sh
 
 Help to create a symlink to configuration files, etc. \
 Can do backups on filename collision. \
@@ -47,7 +59,7 @@ Can be used with --dry, --bin (cuts extension for scripts), --home.
 
 See `./link.sh --help`
 
-### install.sh | Bootstrap
+#### install.sh
 
 > `get_secrets.sh` should probably be used at first
 
@@ -58,29 +70,33 @@ gnome configuration (for my preferences)
 
 See `./install.sh --help`
 
-#### Improvements
+##### Improvements
 
 I want a general install script like whether on ubuntu/arch just `install code`
 and this script detects distro and selects the installation process automatically
 
-### sharekey.sh | Util
+### Utils
+
+#### sharekey.sh
 
 Encrypt the file with a passphrase, share on pastebin as unlisted for 10 mins,
 let to download and delete it.
 
-### download_m3u.sh | Util
+#### download_m3u.sh
 
 Convert m3u files into mp3 files by downloading them with yt-dlp.
 
-### cutname.sh | Util
+#### cutname.sh
 
 Trim the specified string of the files' name STARTING FROM THE END within a directory
 
-### changeVolume.sh | Arch
+### Arch
+
+#### changeVolume.sh
 
 Used by hyprland to send a beep and a dunst notification on fn-key volume change,
 but I think it can be launched on ubuntu too but for what?
 
-### hypr_lockscreen.sh [BROKEN] | Arch
+#### hypr_lockscreen.sh [BROKEN]
 
 Experimental screensaver on hyprlocker

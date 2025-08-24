@@ -7,6 +7,8 @@ BACKEND=https://pastebin.com/raw # Support only pastebin for now
 TOKEN_FILE_NAME=secrets.token
 SECRETS_URL=github.com/sorrtory/secrets
 SECRETS_CLONE_PATH="$HOME/Documents/$(basename $SECRETS_URL)"
+# Set default output file if not set
+: "${SAVED_PASTE_NUMBERS_FILE:=shared_pat_nums.txt}"
 
 # Check if already completed
 if [ -d "$SECRETS_CLONE_PATH" ]; then
@@ -20,6 +22,13 @@ if [ -f "$TOKEN_FILE_NAME.gpg" ]; then
 else
     # Request pastebin
     read -p "Enter the paste numbers: " nums
+    echo "$nums" > "$SAVED_PASTE_NUMBERS_FILE"
+
+    # Strip server URL just keep the paste ID
+    if [[ "$nums" == http*://* ]]; then
+        nums=$(basename "$nums")
+    fi
+
     bytes=$(curl "$BACKEND/$nums")
     if [ -n "$bytes" ]; then
         echo "$bytes" > $TOKEN_FILE_NAME.gpg
@@ -34,7 +43,7 @@ if [ -f "$TOKEN_FILE_NAME" ]; then
     echo "Token file already decrypted. Skipping decryption"
 else
     echo "Write a passphrase for gpg:"
-    gpg --decrypt $TOKEN_FILE_NAME.gpg
+    gpg $TOKEN_FILE_NAME.gpg
 
     # Check for token was decrypted
     if [ ! -f "$TOKEN_FILE_NAME" ]; then

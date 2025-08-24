@@ -20,7 +20,11 @@ PASTEBIN_TOKEN_FILE="$HOME/Documents/secrets/pastebin.conf"
 
 
 function help(){
-    echo "Usage: $0 --secret <file> --link <file> --backend-conf <file> {create|delete|get}"
+    echo "Usage: $0 [--secret <file>] [--link <file>] [--backend-conf <file>] {create|delete|get}"
+    echo "Options:"
+    echo -e "\t--secret, -s         File containing the secret to publish"
+    echo -e "\t--link, -l           File to save the share link"
+    echo -e "\t--backend-conf, -bc  File containing backend configuration"
     echo "Examples:"
     echo -e "\t$0 create # Create a new paste using secrets.token and save to last_paste_key.txt"
     echo -e "\t$0 get    # Get the last paste kept in last_paste_key.txt, decrypt it and save to secrets.token"
@@ -237,7 +241,6 @@ case "$BACKEND" in
         ;;
 esac 
 
-
 case "$1" in 
     create)
         create_func
@@ -247,5 +250,9 @@ case "$1" in
     ;;
     get)
         get_func
+    ;;
+    *)
+        echo "Unknown option \"$1\""
+        exit 1
     ;;
 esac

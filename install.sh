@@ -113,6 +113,11 @@ for arg in "$@"; do
 	fi
 done
 
+# If ENV_OVERRIDES contains "config", override CONFIG before sourcing install.conf
+if [[ -n "${ENV_OVERRIDES[config]:-}" ]]; then
+	CONFIG="${ENV_OVERRIDES[config]}"
+fi
+
 # Load environment variables from config
 if [ -f "$CONFIG" ]; then
 	source "$CONFIG"
@@ -129,7 +134,7 @@ else
 	fi
 fi
 
-# Override variables with command-line values
+# Override CONFIG variables with command-line values from ENV_OVERRIDES
 for key in "${!ENV_OVERRIDES[@]}"; do
 	# Convert key to uppercase and replace dashes with underscores
 	var_name=$(echo "$key" | tr '[:lower:]-' '[:upper:]_')

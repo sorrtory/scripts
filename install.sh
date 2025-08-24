@@ -679,13 +679,12 @@ function setup_gnome() {
 		chmod +x gnome-shell-extension-installer
 		sudo mv gnome-shell-extension-installer /usr/bin/
 	fi
-
-	for ext in "${!ADD_EXTENSIONS[@]}"; do
-		gnome-shell-extension-installer "${ADD_EXTENSIONS[$ext]}"
+	for ext in "${ADD_EXTENSIONS[@]}"; do
+		gnome-shell-extension-installer "$ext"
 	done
 	echo "Extensions are installed"
 
-	for ext in "${ADD_EXTENSIONS[@]}"; do
+	for ext in "${!ADD_EXTENSIONS[@]}"; do
 		gnome-extensions enable "$ext"
 	done
 	echo "Extensions are enabled"

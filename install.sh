@@ -167,7 +167,8 @@ function link_configs() {
 	info_start "Linking configs"
 	if [[ -x "$(dirname "$0")/link.sh" ]]; then
 		for link in "${LINKS[@]}"; do
-			"$(dirname "$0")/link.sh" "$link"
+			# Use $link with args. Don't need to quote it
+			"$(dirname "$0")/link.sh" $link
 		done
 	else
 		info_bad "link.sh not found or not executable"
@@ -502,7 +503,9 @@ function setup_external_proxy() {
 	fi
 
 	# Set up LXD
-	lxd init --auto
+	if ! lxc storage list | grep -q '^default'; then
+    	sudo lxd init --auto
+	fi
 
 	EXTERNAL_PROXY_IP=$(ip -o -4 addr show $(lxc profile show default | grep network | awk '{print $2}') | awk '{print $4}' | cut -d/ -f1 | cut -d\. -f1,2,3 | xargs -I{} echo "{}.254")
 

@@ -38,10 +38,12 @@ Show usefull info about commits including commit size and nice output in general
 
 #### bootstrap.sh
 
-Convenient way to execute the following scripts
+Convenient way to execute the following bootsrap scripts.
+Basically it updates the Ubuntu, clone whole scripts, 
+clone secrets using pastebin-shared PAT, cleans up and check the system.
 
 ```bash
-sh -c "$(wget -qO- https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/bootstrap.sh)"
+bash -c "$(wget -qO- https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/bootstrap.sh)"
 ```
 
 #### get_secrets.sh

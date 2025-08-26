@@ -36,8 +36,6 @@ Show usefull info about commits including commit size and nice output in general
 
 #### after_reboot.sh
 
-#### after_reboot.sh
-
 This script automates a simple "run once after reboot" workflow:
 
 1. **First run:**
@@ -51,6 +49,15 @@ This script automates a simple "run once after reboot" workflow:
     - Prints "Hello again!"
     - Removes the marker and disables/removes its systemd service
     - Will not run automatically again
+
+#### ublock.js
+
+I add this script to my ublock config using [this](https://alex.balgavy.eu/org-roam/20220606184728-injecting-js-with-ublock-origin/)
+approach (you can find an example [here](https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin) too)
+
+```
+https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/ublock.js
+```
 
 ### Bootstrap
 

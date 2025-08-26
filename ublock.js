@@ -3,8 +3,7 @@ ublock.js text/javascript
     "use strict";
     console.log("Hello World from injected script!");
     alert("Loaded: " + document.location.href);
-    if ( /(^|\.)vk\.(com|ru)$/.test(document.location.hostname) === false ) { return; }
-    
+
     function checkAndRedirect() {
       console.log("Redirecting: vk/feed -> vk/im");
       const p = location.pathname;

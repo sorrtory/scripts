@@ -1,9 +1,7 @@
 ublock.js text/javascript
 (function () {
     "use strict";
-    console.log("Hello World from injected script!");
-    alert("Loaded: " + document.location.href);
-
+    console.log("Hello World from injected script! 2");
     // function checkAndRedirect() {
     //   console.log("Redirecting: vk/feed -> vk/im");
     //   const p = location.pathname;

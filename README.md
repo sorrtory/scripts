@@ -39,32 +39,35 @@ Show usefull info about commits including commit size and nice output in general
 This script automates a simple "run once after reboot" workflow:
 
 1. **First run:**
-    - Prints "Hello, world!"
-    - Creates `/var/tmp/hello_after_reboot` marker file
-    - Installs a systemd service to run itself at next boot
-    - Initiates a reboot
+
+   - Prints "Hello, world!"
+   - Creates `/var/tmp/hello_after_reboot` marker file
+   - Installs a systemd service to run itself at next boot
+   - Initiates a reboot
 
 2. **After reboot:**
-    - Detects the marker file
-    - Prints "Hello again!"
-    - Removes the marker and disables/removes its systemd service
-    - Will not run automatically again
+   - Detects the marker file
+   - Prints "Hello again!"
+   - Removes the marker and disables/removes its systemd service
+   - Will not run automatically again
 
-#### ublock.js
+#### block-vk-feed.js
 
-I add this script to my ublock config using [this](https://alex.balgavy.eu/org-roam/20220606184728-injecting-js-with-ublock-origin/)
-approach (you can find an example [here](https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin) too)
+I used to add this script to my ublock config using [this](https://alex.balgavy.eu/org-roam/20220606184728-injecting-js-with-ublock-origin/)
+approach (you can find an example [here](https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin) too).
 
-```
-https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/ublock.js
-```
+But here is a a quote from devs of the TwitchAdSolutions devs
+
+> The scripts may randomly stop being applied by uBlock Origin for unknown reasons (#200). It's recommended to use the userscript versions instead.
+
+So I ended up switching to Tampermonkey to launch my user script.
 
 ### Bootstrap
 
 #### bootstrap.sh
 
 Convenient way to execute the following bootsrap scripts.
-Basically it updates the Ubuntu, clone whole scripts, 
+Basically it updates the Ubuntu, clone whole scripts,
 clone secrets using pastebin-shared PAT, cleans up and check the system.
 
 ```bash

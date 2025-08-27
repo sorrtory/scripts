@@ -51,7 +51,7 @@ Options:
 	check             Default. Runs system checks for installed packages, snaps, special packages, clones, and proxy.
 	dbeaver           Installs DBeaver CE.
 	docker            Installs Docker CE and related components.
-	external-proxy    Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use the proxy.
+	proxy             Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use this proxy.
 	gnome             Applies GNOME desktop customizations and installs extensions.
 	golang            Installs the latest Go and updates PATH.
 	help              Show this help message.
@@ -85,6 +85,7 @@ Environment (from install.conf) variables that can be overridden with --<var>=<v
 	--snap-pkgs            SNAP_PKGS (snap packages)
 	--repos-to-clone       REPOS_TO_CLONE (GitHub repos to clone)
 	--special-pkgs         SPECIAL_PKGS (special install functions)
+	--firefox-preferences  FIREFOX_PREFERENCES (Firefox preferences). Will substitute EXTERNAL_PROXY_IP with the actual value
 
 I recommend to create install.conf before using this script
 
@@ -196,6 +197,11 @@ function link_ssh() {
 	info_start "Linking SSH config"
 	if [[ -x "$(dirname "$0")/link.sh" ]]; then
 		"$(dirname "$0")/link.sh" $LINK_TO_SSH
+		sudo chmod -R 600 ~/.ssh
+		sudo chmod 644 ~/.ssh/config
+		sudo chmod 644 ~/.ssh/*.pub
+		sudo chmod 755 ~/.ssh
+
 	else
 		info_bad "link.sh not found or not executable"
 	fi
@@ -525,7 +531,7 @@ function setup_external_proxy() {
 	else
 		echo "ERROR: User '$USER' is not in the lxd group. Please add the user to the lxd group and re-login."
 		sudo usermod -aG lxd "$USER"
-		echo "User '$USER' has been added to the lxd group."
+		echo "User '$USER' has been added to the lxd group. You need to restart your GNOME session or reboot."
 	fi
 
 	# Set up LXD
@@ -545,44 +551,49 @@ function setup_external_proxy() {
 
 	lxc exec $VPN_CONTAINER_NAME -- apt update -y && lxc exec $VPN_CONTAINER_NAME -- apt upgrade -y 
 	lxc exec $VPN_CONTAINER_NAME -- apt install -y squid wireguard
-	lxc exec $VPN_CONTAINER_NAME -- echo "http_access allow all
+	echo "http_access allow all
 	http_port 3128
 	coredump_dir /var/spool/squid
-	logfile_rotate 0" > /etc/squid/squid.conf
+	logfile_rotate 0" | lxc exec $VPN_CONTAINER_NAME -- tee /etc/squid/squid.conf
 	# Ennable default profile
-	lxc exec $VPN_CONTAINER_NAME systemctl enable --now wg-quick@$VPN_DEFAULT_PROFILE
+	lxc exec $VPN_CONTAINER_NAME -- systemctl enable --now wg-quick@$VPN_DEFAULT_PROFILE
 	lxc restart $VPN_CONTAINER_NAME
 
 	# Wait for the container to be ready
 	lxc exec $VPN_CONTAINER_NAME -- bash -c "while ! nc -z localhost 3128; do sleep 1; done"
 	info_end "Proxy: LXD setup complete"
+}
 
+function setup_firefox(){
+	# Firefox is preinstalled with snap on Ubuntu 
+	
 	# Init firefox
-	info_start "Proxy: Adding proxypath to Firefox"
+	info_start "Firefox: Init"
 	if ! command -v firefox &> /dev/null; then
 		echo "ERROR: Firefox is not installed. Please install Firefox before continuing."
 		info_end "[Failed] External Proxy setup: Firefox not configured"
 		return
 	fi
 
+	echo "Starting firefox for the very first time to create config file structure"
+	echo "Warning! Here is hardcoded 5 seconds sleep"
 	firefox --headless &
 	firefox_pid=$!
-	sleep 5
+	read -t 3 -p "Wait 5 seconds for Firefox to initialize? [Y/n]: " WAIT_ANSWER
+	if [[ -z "$WAIT_ANSWER" || "$WAIT_ANSWER" =~ ^[Yy]$ ]]; then
+		echo "Let's wait, although firefox is usually quick"
+		# User pressed enter, or answered yes, or didn't respond in 5 seconds
+		sleep 5
+	fi
 	kill $firefox_pid
 
+	echo "Firefox: Adding proxypath and user preferences"
+	EXTERNAL_PROXY_IP=$(lxc list "$VPN_CONTAINER_NAME" --format json | jq -r '.[0].state.network.eth0.addresses[] | select(.family=="inet") | .address')
 	# Add proxy to firefox
 	FIREFOX_PROFILE_DIR=$(find "$HOME/snap/firefox/common/.mozilla/firefox" -maxdepth 1 -type d -name "*.default*" | head -n 1)
-		cat > "$FIREFOX_PROFILE_DIR/user.js" <<-EOF
-		user_pref("network.proxy.type", 1);
-		user_pref("network.proxy.http", "$EXTERNAL_PROXY_IP");
-		user_pref("network.proxy.http_port", 3128);
-		user_pref("network.proxy.ssl", "$EXTERNAL_PROXY_IP");
-		user_pref("network.proxy.ssl_port", 3128);
-		user_pref("browser.tabs.insertAfterCurrent", true);
-		user_pref("browser.ctrlTab.sortByRecentlyUsed", true);
-	EOF
-
-	info_end "Proxy: Firefox proxypath added"
+	# Substitute EXTERNAL_PROXY_IP with the actual value in FIREFOX_PREFERENCES
+	echo "${FIREFOX_PREFERENCES//EXTERNAL_PROXY_IP/$EXTERNAL_PROXY_IP}" > "$FIREFOX_PROFILE_DIR/user.js"
+	info_end "Proxy: Firefox proxypath and user preferences added"
 }
 
 
@@ -733,6 +744,7 @@ function setup_full() {
 	link_configs
 	setup_gnome
 	setup_external_proxy
+	setup_firefox
 }
 
 function main() {
@@ -754,8 +766,11 @@ function main() {
 			link-ssh)
 				link_ssh
 				;;
-			external-proxy)
+			proxy)
 				setup_external_proxy
+				;;
+			firefox)
+				setup_firefox
 				;;
 			docker)
 				install_docker

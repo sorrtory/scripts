@@ -60,13 +60,14 @@ Options:
 	snaps             Installs Snap packages listed in the SNAP_PKGS dictionary
 	spotify           Installs Spotify.
 	link-ssh          Links SSH configuration files using link.sh and LINK_TO_SSH.
-	ssh-key           Sets up SSH key for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
+	github            Sets up SSH key and git config for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
 	sublime           Installs Sublime Text and Sublime Merge.
 
 Environment (from install.conf) variables that can be overridden with --<var>=<value> args:
 > WARNING: Can't pass any lists or spaces, use install.conf for it
-	--config               CONFIG (path to config file)
+	--config               CONFIG (path to install.sh config file)
 	--email                EMAIL (GitHub noreply email)
+	--name 				   NAME (Github name)
 	--gsettings-cmds       GSETTINGS_CMDS (list of gsettings commands). Executes before extensions and keybindings
 	--add-extensions       ADD_EXTENSIONS (list of GNOME extensions to install)
 	--github               GITHUB (GitHub SSH URL)
@@ -99,7 +100,7 @@ Examples:
   $0 link-ssh          						# Link SSH configuration files
   $0 setup             						# Run all setup steps
   $0 configs           						# Link just configuration files
-  $0 ssh-key           						# Set up SSH key for GitHub
+  $0 github           						# Set up git config and SSH key for GitHub
 EOF
 }
 ## Source install.conf and overwrite it with provided --<var>=<value> args
@@ -597,7 +598,7 @@ function setup_firefox(){
 }
 
 
-function setup_ssh_key() {
+function setup_github() {
 	# Create a new SSH key if it doesn't exist
 	info_start "Set SSH key for GITHUB"
 	local github_ok
@@ -629,6 +630,11 @@ function setup_ssh_key() {
 		github_ok="BAD"
 	fi
 	info_end "GITHUB SSH key is [$github_ok]"
+
+	info_start "Add global git email and name"
+	git config --global user.name "$NAME"
+	git config --global user.email "$EMAIL"
+	info_end "Add global git config [DONE]"
 }
 
 function setup_gnome() {
@@ -739,7 +745,7 @@ function install_full() {
 
 function setup_full() {
 	link_ssh
-	setup_ssh_key
+	setup_github
 	clone_repos
 	link_configs
 	setup_gnome
@@ -793,8 +799,8 @@ function main() {
 			spotify)
 				install_spotify
 				;;
-			ssh-key)
-				setup_ssh_key
+			github)
+				setup_github
 				;;
 			clone-repos)
 				clone_repos

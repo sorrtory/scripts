@@ -65,28 +65,31 @@ Options:
 
 Environment (from install.conf) variables that can be overridden with --<var>=<value> args:
 > WARNING: Can't pass any lists or spaces, use install.conf for it
-	--config               CONFIG (path to install.sh config file)
-	--email                EMAIL (GitHub noreply email)
-	--name 				   NAME (Github name)
-	--gsettings-cmds       GSETTINGS_CMDS (list of gsettings commands). Executes before extensions and keybindings
-	--add-extensions       ADD_EXTENSIONS (list of GNOME extensions to install)
-	--github               GITHUB (GitHub SSH URL)
-	--github-key           GITHUB_KEY (SSH key path)
-	--links                LINKS (list of source:destination pairs for linking)
-	--link-to-ssh          LINK_TO_SSH (link options for SSH config)
-	--vpn-profiles-folder  VPN_PROFILES_FOLDER (folder with VPN profiles)
-	--vpn-default-profile  VPN_DEFAULT_PROFILE (default VPN profile)
-	--vpn-container        VPN_CONTAINER_NAME (LXD container for proxy)
-	--install-cmd          INSTALL_CMD (apt install command)
-	--update-cmd           UPDATE_CMD (apt update command)
-	--add-repo-cmd         ADD_REPO_CMD (add-apt-repository command)
-	--pkg-repos            PKG_REPOS (list of package repositories)
-	--pkgs                 PKGS (list of packages to install)
-	--custom-launchers     CUSTOM_LAUNCHERS (custom gnome keybindings)
-	--snap-pkgs            SNAP_PKGS (snap packages)
-	--repos-to-clone       REPOS_TO_CLONE (GitHub repos to clone)
-	--special-pkgs         SPECIAL_PKGS (special install functions)
-	--firefox-preferences  FIREFOX_PREFERENCES (Firefox preferences). Will substitute EXTERNAL_PROXY_IP with the actual value
+	--config                 CONFIG (path to install.sh config file)
+	--email                  EMAIL (GitHub noreply email)
+	--name 				     NAME (Github name)
+	--gsettings-cmds         GSETTINGS_CMDS (list of gsettings commands). Executes before extensions and keybindings
+	--add-extensions         ADD_EXTENSIONS (list of GNOME extensions to install)
+	--github                 GITHUB (GitHub SSH URL)
+	--github-key             GITHUB_KEY (SSH key path)
+	--links                  LINKS (list of source:destination pairs for linking)
+	--link-to-ssh            LINK_TO_SSH (link options for SSH config)
+	--vpn-profiles-folder    VPN_PROFILES_FOLDER (folder with VPN profiles)
+	--vpn-default-profile    VPN_DEFAULT_PROFILE (default VPN profile)
+	--vpn-container          VPN_CONTAINER_NAME (LXD container for proxy)
+	--vpn-container-ip-host  VPN_CONTAINER_IP_HOST (IP address of the lxd network)
+	--ssserver-conf          SSSERVER_CONF (ShadowSocks lxd server)
+	--sslocal-conf           SSLOCAL_CONF (ShadowSocks host client)
+	--install-cmd            INSTALL_CMD (apt install command)
+	--update-cmd             UPDATE_CMD (apt update command)
+	--add-repo-cmd           ADD_REPO_CMD (add-apt-repository command)
+	--pkg-repos              PKG_REPOS (list of package repositories)
+	--pkgs                   PKGS (list of packages to install)
+	--custom-launchers       CUSTOM_LAUNCHERS (custom gnome keybindings)
+	--snap-pkgs              SNAP_PKGS (snap packages)
+	--repos-to-clone         REPOS_TO_CLONE (GitHub repos to clone)
+	--special-pkgs           SPECIAL_PKGS (special install functions)
+	--firefox-preferences    FIREFOX_PREFERENCES (Firefox preferences). Will substitute EXTERNAL_PROXY_IP with the actual value
 
 I recommend to create install.conf before using this script
 
@@ -530,7 +533,7 @@ function setup_external_proxy() {
 	if id -nG "$USER" | grep -qw "lxd"; then
 		echo "User '$USER' is in the lxd group"
 	else
-		echo "ERROR: User '$USER' is not in the lxd group. Please add the user to the lxd group and re-login."
+		echo "ERROR: User '$USER' is not in the lxd group."
 		sudo usermod -aG lxd "$USER"
 		echo "User '$USER' has been added to the lxd group. You need to restart your GNOME session or reboot."
 	fi
@@ -540,7 +543,7 @@ function setup_external_proxy() {
     	sudo lxd init --auto
 	fi
 
-	EXTERNAL_PROXY_IP=$(ip -o -4 addr show $(lxc profile show default | grep network | awk '{print $2}') | awk '{print $4}' | cut -d/ -f1 | cut -d\. -f1,2,3 | xargs -I{} echo "{}.254")
+	EXTERNAL_PROXY_IP=$(ip -o -4 addr show $(lxc profile show default | grep network | awk '{print $2}') | awk '{print $4}' | cut -d/ -f1 | cut -d\. -f1,2,3 | xargs -I{} echo "{}.$VPN_CONTAINER_IP_HOST")
 
 	lxc launch ubuntu:24.04 $VPN_CONTAINER_NAME
 	sudo lxc config device override $VPN_CONTAINER_NAME eth0 ipv4.address=$EXTERNAL_PROXY_IP && lxc stop $VPN_CONTAINER_NAME && lxc start $VPN_CONTAINER_NAME
@@ -550,19 +553,29 @@ function setup_external_proxy() {
 		lxc file push -p "$profile" $VPN_CONTAINER_NAME/etc/wireguard/
 	done
 
+	# Install dependencies
 	lxc exec $VPN_CONTAINER_NAME -- apt update -y && lxc exec $VPN_CONTAINER_NAME -- apt upgrade -y 
-	lxc exec $VPN_CONTAINER_NAME -- apt install -y squid wireguard
-	echo "http_access allow all
-	http_port 3128
-	coredump_dir /var/spool/squid
-	logfile_rotate 0" | lxc exec $VPN_CONTAINER_NAME -- tee /etc/squid/squid.conf
-	# Ennable default profile
+	lxc exec $VPN_CONTAINER_NAME -- snap install shadowsocks-rust
+	lxc exec $VPN_CONTAINER_NAME -- apt install -y wireguard
+
+	# Setup shadowsocks server
+	lxc exec $VPN_CONTAINER_NAME -- mkdir -p /var/snap/shadowsocks-rust/common/etc/shadowsocks-rust/
+	echo "${SSSERVER_CONF//EXTERNAL_PROXY_IP/$EXTERNAL_PROXY_IP}" | lxc exec $VPN_CONTAINER_NAME -- tee /var/snap/shadowsocks-rust/common/etc/shadowsocks-rust/config.json
+	lxc exec $VPN_CONTAINER_NAME -- snap start --enable shadowsocks-rust.ssserver-daemon
+
+	# Enable default wireguard profile
 	lxc exec $VPN_CONTAINER_NAME -- systemctl enable --now wg-quick@$VPN_DEFAULT_PROFILE
 	lxc restart $VPN_CONTAINER_NAME
+	info_end "Proxy: LXD setup [DONE]"
 
-	# Wait for the container to be ready
-	lxc exec $VPN_CONTAINER_NAME -- bash -c "while ! nc -z localhost 3128; do sleep 1; done"
-	info_end "Proxy: LXD setup complete"
+	# Enable client
+	info_start "Proxy: Client setup"
+	sudo snap install shadowsocks-rust 
+	
+	sudo mkdir -p /var/snap/shadowsocks-rust/common/etc/shadowsocks-rust/
+	echo "${SSLOCAL_CONF//EXTERNAL_PROXY_IP/$EXTERNAL_PROXY_IP}" | sudo tee /var/snap/shadowsocks-rust/common/etc/shadowsocks-rust/config.json
+	snap start --enable shadowsocks-rust.sslocal-daemon
+	info_end "Proxy: Client setup [DONE]"
 }
 
 function setup_firefox(){

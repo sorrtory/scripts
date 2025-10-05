@@ -540,6 +540,7 @@ function setup_external_proxy() {
 
 	# Set up LXD
 	if ! lxc storage list | grep -q '^default'; then
+		echo "Init lxd"
     	sudo lxd init --auto
 	fi
 

@@ -59,11 +59,11 @@ check_existing_config() {
                 ;;
             r|R)
                 replace
-                return 1
+                return 0
                 ;;
             b|B|"")
                 backup
-                return 1
+                return 0
                 ;;
             *)
                 echo "Invalid choice. Please enter s, r, or b."

@@ -89,7 +89,12 @@ Create a softlink like "\<from> [\<to>]"
 
 Can be used with --dry, --bin (cuts extension for scripts), --home.
 
-See `./link.sh --help`
+_Example:_
+
+```bash
+./link.sh ../configs/mpv
+./link.sh --help
+```
 
 #### install.sh
 
@@ -121,6 +126,11 @@ Convert m3u files into mp3 files by downloading them with yt-dlp.
 #### cutname.sh
 
 Trim the specified string of the files' name STARTING FROM THE END within a directory
+
+#### editTorrent.sh
+
+Little `transmission-edit` wrapper that is used to replace BitTorrent passkey or
+tracker URL in a torrent file.
 
 ### Arch
 

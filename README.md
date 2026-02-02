@@ -176,6 +176,11 @@ echo "nameserver 1.1.1.1" | sudo tee /etc/netns/vpn/resolv.conf
 echo "nameserver 8.8.8.8" | sudo tee -a /etc/netns/vpn/resolv.conf
 ```
 
+for discord you may need to symlink the systemd-resolved resolv.conf:
+```bash
+sudo ip netns exec vpn ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+```
+
 _Note: NO ipv6 routing. But it is easy to add if needed_
 
 ### Arch

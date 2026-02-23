@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         bye-bye vk/feed
 // @namespace    http://tampermonkey.net/
-// @version      2026-02-08
+// @version      1.0
+// Version by    2026-02-08
 // @description  Reditect from vk/feed -> vk/im
 // @author       sorrtory
 // @match        https://vk.com/*

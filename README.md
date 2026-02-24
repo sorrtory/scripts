@@ -1,34 +1,44 @@
-# Scripts
+# Dotfiles/Scripts
 
-<p>
-I wrote them because I was bored and silly a little like
-<img src="https://styles.redditmedia.com/t5_5x81u7/styles/communityIcon_t8en21sthsja1.jpg?width=128&frame=1&auto=webp&s=e541baf4fe498485bf557d8ba6b6fce82d497039" alt="r/silltcats" width="25" height="25">
-</p>
+[![Configs badge](https://img.shields.io/badge/sorrtory-configs-blue?logo=github)](https://github.com/sorrtory/configs)
 
-To easily access scripts I like to softlink them inside the bin folder:
-I also wrote [`link.sh`](#linksh) to simplify this.
+[![Scripts badge](https://img.shields.io/badge/sorrtory-scripts-green?logo=github)](https://github.com/sorrtory/scripts)
+
+[![Secrets badge](https://img.shields.io/badge/sorrtory-secrets-blue?logo=github)](https://github.com/sorrtory/secrets)
+
+---
+
+Some scripts I wrote to enhance my linux adventures.
+
+Symlink to `/usr/local/bin/` and run without `.sh`
 
 ```bash
-# e.g. lofi.sh to run it anywhere I want just with "lofi"
 sudo ln -s $(pwd)/lofi.sh /usr/local/bin/lofi
+# or with a script
+sudo ./link.sh --bin lofi.sh
+# Reload the terminal and run the scripts easily
+lofi
 ```
 
 ## Description
 
 All script are likely to be easy to update, because configuration is always at the heading
 
-| Tag                     | Meaning                             |
-| ----------------------- | ----------------------------------- |
-| [Vibe](#vibe)           | Funny silly scripts                 |
-| [Bootstrap](#bootstrap) | Setup or initialization scripts     |
-| [Util](#utils)          | Utility scripts for file operations |
-| [Arch](#arch)           | Scripts specific to Arch Linux      |
+| Tag                         | Meaning                             |
+| --------------------------- | ----------------------------------- |
+| [Vibe](#vibe)               | Funny silly scripts                 |
+| [Userscripts](#userscripts) | Userscripts for Firefox             |
+| [Bootstrap](#bootstrap)     | Setup or initialization scripts     |
+| [Util](#utils)              | Utility scripts for file operations |
+| [Arch](#arch)               | Scripts specific to Arch Linux      |
 
 ### Vibe
 
+Some funny experiments
+
 #### lofi.sh
 
-Launch a lofi girl from the console via mpv.
+Launch a [lofi girl](https://www.youtube.com/watch?v=jfKfPfyJRdk) from the console via mpv.
 
 #### commit_info.sh
 
@@ -39,47 +49,79 @@ Show usefull info about commits including commit size and nice output in general
 This script automates a simple "run once after reboot" workflow:
 
 1. **First run:**
-
-   - Prints "Hello, world!"
-   - Creates `/var/tmp/hello_after_reboot` marker file
-   - Installs a systemd service to run itself at next boot
-   - Initiates a reboot
+    - Prints "Hello, world!"
+    - Creates `/var/tmp/hello_after_reboot` marker file
+    - Installs a systemd service to run itself at next boot
+    - Initiates a reboot
 
 2. **After reboot:**
-   - Detects the marker file
-   - Prints "Hello again!"
-   - Removes the marker and disables/removes its systemd service
-   - Will not run automatically again
+    - Detects the marker file
+    - Prints "Hello again!"
+    - Removes the marker and disables/removes its systemd service
+    - Will not run automatically again
 
-#### block-vk-feed.js
+### Userscripts
 
-I used to add this script to my ublock config using [this](https://alex.balgavy.eu/org-roam/20220606184728-injecting-js-with-ublock-origin/)
-approach (you can find an example [here](https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin) too).
+I used to add these scripts to [my ublock config](https://github.com/sorrtory/configs/blob/master/backups/ublock.txt) using [this](https://alex.balgavy.eu/org-roam/20220606184728-injecting-js-with-ublock-origin/)
+approach (run with ublock [example](https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin)).
 
-But here is a quote from devs of the TwitchAdSolutions devs
+But here is a quote from devs of the `TwitchAdSolutions` devs
 
 > The scripts may randomly stop being applied by uBlock Origin for unknown reasons (#200). It's recommended to use the userscript versions instead.
 
-So I ended up switching to Tampermonkey to launch my user script.
+So I ended up switching to `Tampermonkey` to launch my user scripts.
+
+#### block-vk-feed.js
+
+[![Install](https://img.shields.io/badge/install-userscript-brightgreen)](https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/monkeys/block-vk-feed.user.js)
+
+Always redirects from VK feed to VK messages.
+
+#### VK-Video-Downloader
+
+[![Install](https://img.shields.io/badge/install-userscript-blue)](https://github.com/JustKappaMan/VK-Video-Downloader/raw/refs/heads/main/monkeys/scripts/VK-Video-Downloader-desktop.user.js)
+
+[project repository](https://github.com/JustKappaMan/VK-Video-Downloader)
+
+Allows to download videos from VK by adding a "Download" button to the video player interface.
+
+There is also [VK Next/music saver](https://github.com/vknext/vk-music-saver) solution here to be noticed.
+
+#### block-website.js
+
+[![Install](https://img.shields.io/badge/install-userscript-brightgreen)](https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/monkeys/block-website.user.js)
+
+Redirect from specified websites to the one.
+
+[Unhook](https://unhook.app/) is also needed to be mentioned
 
 ### Bootstrap
 
+Fresh `ubuntu` setup scripts
+
 #### bootstrap.sh
 
-Convenient way to execute the following bootsrap scripts.
+Convenient way to execute the bootstrap flow.
+
+1. Clone `/scripts`
+2. Get `/secrets` with `get_secrets.sh`
+3. Run `install.sh` to setup the system
+
 Basically it updates the Ubuntu, clone whole scripts,
 clone secrets using pastebin-shared PAT, cleans up and check the system.
 
 ```bash
 bash -c "$(wget -qO- https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/bootstrap.sh)"
-# OR with some help of short.io
+# OR with some help of short.io [May be outdated]
 bash -c "$(wget -qO- https://go.sorrtory.ru/bootstrap.sh)"
 ```
 
 #### get_secrets.sh
 
-Download byte data from pastebin, decrypts with a passpharase.
-The result is intended to be a PAT for github secrets repo, so it clones it
+1. Download byte data from pastebin
+2. Ask for gpg passphrase.
+3. The result is intended to be a PAT for github `/secrets` repo
+4. Clone secrets repo with the obtained PAT
 
 #### link.sh
 
@@ -92,24 +134,27 @@ Can be used with --dry, --bin (cuts extension for scripts), --home.
 _Example:_
 
 ```bash
+# Link ~/Documents/configs/mpv to ~/.config/mpv
 ./link.sh ../configs/mpv
 ./link.sh --help
 ```
 
 #### install.sh
 
-> `get_secrets.sh` should probably be used at first
+> `get_secrets.sh` can be used at first to get `/secrets` that may be required for `install.sh` to work properly.
 
-Read settings from `install.conf` and autoinstall tons of ubuntu software.
-Has some features like starting a lxd+wireguard container and adding it to firefox proxy conf,
-setting up ssh key for system, installation checks, linking configs (using `link.sh`),
-gnome configuration (for my preferences)
+Read settings from `install.conf` and installs packages, link configs, etc.
 
-TODO: `flatpak run be.alexandervanhee.gradia --screenshot=INTERACTIVE` for ctrl+printscreen
+- custom commands and installations on `install.conf`
+- localhost shadowsocks proxy
+- ssh and github setup
+- `/configs` linking
+- gnome configuration
+- install packages and software
 
-See `./install.sh --help`
+See `./install.sh help`
 
-##### Improvements
+##### Goal
 
 I want a general install script like whether on ubuntu/arch just `install code`
 and this script detects distro and selects the installation process automatically
@@ -117,6 +162,10 @@ and this script detects distro and selects the installation process automaticall
 ### Utils
 
 #### sharekey.sh
+
+> Needs `/secrets` for PAT
+
+Used in pair with `get_secrets.sh`
 
 Encrypt the file with a passphrase, share on pastebin as unlisted for 10 mins,
 let to download and delete it.
@@ -142,46 +191,50 @@ Trim the specified string of the files' name STARTING FROM THE END within a dire
 
 #### editTorrent.sh
 
+> Needs `/secrets` for passkey
+
 Little `transmission-edit` wrapper that is used to replace BitTorrent passkey or
 tracker URL in a torrent file.
 
-#### VPN in browser
+#### vpn.sh
 
-Symlink these scripts to /usr/local/bin to launch firefox or chrome with vpn seamlessly:
+> Needs `/secrets` for VPN credentials
 
-```bash
-sudo vpnsetup
-vpnfirefox
-```
 
-The [vpnexec](./vpnexec.sh) is used to launch [firefox](./vpnfirefox.sh) or [chrome.sh](./vpnchrome.sh)
-with VPN inside the namespace generated by [vpnsetup.sh](./vpnsetup.sh).
+This script is intended to launch any command through VPN connection. 
+To support graphics forwarding for GUI applications use `-g` flag.
 
-> [vpnsetup.sh](./vpnsetup.sh) requires changing some params inside itself.
-
-These params are taken from your wireguard config:
-
-- LOCALPRIVATEKEYFILE - path to your wireguard private key file (literally the private key in a text file)
-- PRESHAREDKEYFILE - path to your wireguard preshared key file (literally the preshared key in a text file)
-- PEERPUBLICKEY - peer public key from wg config
-- ENDPOINT - peer endpoint from wg config
-- ENDPOINT_IP - peer endpoint IP (without port)
-- WGADDRESS - ADDRESS from wg config
-
-Also ONCE setup the DNS servers for the vpn namespace (that is generated by vpnsetup.sh):
+Prerequisites:
 
 ```bash
-sudo mkdir -p /etc/netns/vpn
-echo "nameserver 1.1.1.1" | sudo tee /etc/netns/vpn/resolv.conf
-echo "nameserver 8.8.8.8" | sudo tee -a /etc/netns/vpn/resolv.conf
+# Install dependencies (dns server is not required but it gurantees no dns leaks)
+sudo apt install -y wireguard dnsmasq-base
+# Copy the config
+sudo cp ~/Documents/secrets/wireguard/extra.conf /etc/wireguard/extra.conf
 ```
 
-for discord you may need to symlink the systemd-resolved resolv.conf:
+Launching applications through VPN:
+
 ```bash
-sudo ip netns exec vpn ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+# Test the connection
+sudo vpn -t 
+# Run curl with vpn
+sudo vpn curl ifconfig.me
+# Run discord with vpn
+sudo vpn -g vesktop
+# See the help
+sudo vpn --help
 ```
 
-_Note: NO ipv6 routing. But it is easy to add if needed_
+Some good resources on vpnizing applications:
+
+- [Run firefox within net namespace](https://gist.github.com/larsch/9fe268026ef55796c182e7c67de91fc4)
+- [Run net namespace with internet](https://gist.github.com/dpino/6c0dca1742093346461e11aa8f608a99)
+- [proxychains-ng](https://github.com/rofl0r/proxychains-ng) (only tcp)
+- [tun2socks](https://github.com/xjasonlyu/tun2socks) (only tcp)
+- [Proxy-ns](https://github.com/OkamiW/proxy-ns) (proxychains with udp) 
+- [socks5 with discord](https://gist.github.com/mzpqnxow/ca4b4ae0accf2d3b275537332ccbe86e) (doesn't seem to work for udp)
+- [wireguard namespacing](https://www.wireguard.com/netns/)
 
 ### Arch
 

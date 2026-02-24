@@ -43,31 +43,33 @@ $0 is planned to be used with install.conf on Ubuntu
 https://github.com/sorrtory/scripts?tab=readme-ov-file#installsh
 
 Options:
-	all               Install all packages, snaps, and special packages.
-	chrome            Installs Google Chrome.
-	clone-repos       Clones repositories listed in REPOS_TO_CLONE (edit this variable to change repos).
-	code              Installs Visual Studio Code and MesloLGS NF fonts.
-	configs           Links configuration files using link.sh. Must be run from the directory containing link.sh.
-	check             Default. Runs system checks for installed packages, snaps, special packages, clones, and proxy.
-	dbeaver           Installs DBeaver CE.
-	docker            Installs Docker CE and related components.
-	proxy             Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use this proxy.
-	gnome             Applies GNOME desktop customizations and installs extensions.
-	golang            Installs the latest Go and updates PATH.
-	help              Show this help message.
-	pkgs              Installs APT packages listed in PKGS (edit this variable to change packages).
-	setup             Run all setup steps (GNOME, SSH key, repo clone, configs, external proxy).
-	snaps             Installs Snap packages listed in the SNAP_PKGS dictionary
-	spotify           Installs Spotify.
-	link-ssh          Links SSH configuration files using link.sh and LINK_TO_SSH.
-	github            Sets up SSH key and git config for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
-	sublime           Installs Sublime Text and Sublime Merge.
+	all                 Install all packages, snaps, and special packages.
+	chrome              Installs Google Chrome.
+	clone-repos         Clones repositories listed in REPOS_TO_CLONE (edit this variable to change repos).
+	code                Installs Visual Studio Code and MesloLGS NF fonts.
+	configs             Links configuration files using link.sh. Must be run from the directory containing link.sh.
+	check               Default. Runs system checks for installed packages, snaps, special packages, clones, and proxy.
+	dbeaver             Installs DBeaver CE.
+	docker              Installs Docker CE and related components.
+	proxy               Sets up an LXD container, installs WireGuard and Squid, and configures Firefox to use this proxy.
+	gnome               Applies GNOME desktop customizations and installs extensions.
+	keybinds            Appends custom keybindings to GNOME (defined in CUSTOM_LAUNCHERS in install.conf).
+	golang              Installs the latest Go and updates PATH.
+	help                Show this help message.
+	pkgs                Installs APT packages listed in PKGS (edit this variable to change packages).
+	setup               Run all setup steps (GNOME, SSH key, repo clone, configs, external proxy).
+	snaps               Installs Snap packages listed in the SNAP_PKGS dictionary
+	flatpaks            Installs Flatpak packages listed in the FLATPAK_PKGS array
+	spotify             Installs Spotify.
+	link-ssh            Links SSH configuration files using link.sh and LINK_TO_SSH.
+	github              Sets up SSH key and git config for GitHub. Starts ssh-agent and creates a key if GITHUB_KEY doesn't exist.
+	sublime             Installs Sublime Text and Sublime Merge.
 
 Environment (from install.conf) variables that can be overridden with --<var>=<value> args:
 > WARNING: Can't pass any lists or spaces, use install.conf for it
 	--config                 CONFIG (path to install.sh config file)
 	--email                  EMAIL (GitHub noreply email)
-	--name 				     NAME (Github name)
+	--name                   NAME (Github name)
 	--gsettings-cmds         GSETTINGS_CMDS (list of gsettings commands). Executes before extensions and keybindings
 	--add-extensions         ADD_EXTENSIONS (list of GNOME extensions to install)
 	--github                 GITHUB (GitHub SSH URL)
@@ -90,13 +92,16 @@ Environment (from install.conf) variables that can be overridden with --<var>=<v
 	--repos-to-clone         REPOS_TO_CLONE (GitHub repos to clone)
 	--special-pkgs           SPECIAL_PKGS (special install functions)
 	--firefox-preferences    FIREFOX_PREFERENCES (Firefox preferences). Will substitute EXTERNAL_PROXY_IP with the actual value
+	--flatpak-pkgs           FLATPAK_PKGS (Flatpak packages)
+	--vpn-namespace-name     VPN_NAMESPACE_NAME (name of the VPN network namespace)
+	--vpn-namespace-profile  VPN_NAMESPACE_PROFILE (name of the wireguard profile to use for the VPN namespace)
 
 I recommend to create install.conf before using this script
 
 Examples:
   # Lists cannot be passed via command line, set them in install.conf
   $0 --pkgs=(git, )    						# Nope, can't use lists. Use install.conf
-  $0 --link-ssh=~/.ssh/ed25519 link-ssh     # And this won't work either
+  $0 --link-ssh=~/.ssh/ed25519 link-ssh		# And this won't work either
 
   $0 check             						# Check everything
   $0 all               						# Install everything
@@ -169,6 +174,8 @@ missing_vars=()
 [ "${#SNAP_PKGS[@]}" -eq 0 ] && missing_vars+=("SNAP_PKGS (set in install.conf)")
 [ "${#REPOS_TO_CLONE[@]}" -eq 0 ] && missing_vars+=("REPOS_TO_CLONE (set in install.conf)")
 [ "${#SPECIAL_PKGS[@]}" -eq 0 ] && missing_vars+=("SPECIAL_PKGS (set in install.conf)")
+[ "${#FLATPAK_PKGS[@]}" -eq 0 ] && missing_vars+=("FLATPAK_PKGS (set in install.conf)")
+
 
 if [ "${#missing_vars[@]}" -gt 0 ]; then
 	echo "WARNING: The following required config variables are missing:"
@@ -224,6 +231,7 @@ function do_check() {
 	pkgs_ok="OK"
 	snap_pkgs_ok="OK"
 	special_pkgs_ok="OK"
+	flatpak_pkgs_ok="OK"
 
 	# Create Documents directory if it doesn't exist
 	if [ ! -d "$HOME/Documents" ]; then
@@ -299,11 +307,24 @@ function do_check() {
 	info_end "Check specials packages [${special_pkgs_ok}]"
 	echo ""
 
+	info_start "Check flatpak packages"
+	for pkg in "${FLATPAK_PKGS[@]}" ; do
+		if flatpak list | grep -q "$pkg"; then
+			info_ok "$pkg is installed"
+		else
+			info_bad "$pkg is not installed"
+			flatpak_pkgs_ok="BAD"
+		fi
+	done
+	info_end "Check flatpak packages [${flatpak_pkgs_ok}]"
+	echo ""
+
 	if [[ "$clones_ok" == "BAD" || 
 		  "$proxy_ok" == "BAD" || 
 		  "$pkgs_ok" == "BAD" || 
 		  "$snap_pkgs_ok" == "BAD" || 
-		  "$special_pkgs_ok" == "BAD" ]]; then
+		  "$special_pkgs_ok" == "BAD" || 
+		  "$flatpak_pkgs_ok" == "BAD" ]]; then
 		all_ok="BAD"
 	fi
 	info_end "System check result [${all_ok}]"
@@ -381,137 +402,25 @@ function install_snaps() {
 	echo "Some snap packages may require a system reboot to function properly."
 	read -p "Would you like to reboot now? [y/N]: " REBOOT_ANSWER
 	if [[ "$REBOOT_ANSWER" =~ ^[Yy]$ ]]; then
-		sudo reboot
+		sudo systemctl reboot -i
 	fi
 }
 
-function install_golang() {
-	info_start "Installing Go"
-	# Download latest Go
-	GO_VERSION=$(curl -s "https://go.dev/VERSION?m=text" | head -n 1)
-	GO_TAR="${GO_VERSION}.linux-amd64.tar.gz"
-	wget "https://dl.google.com/go/${GO_TAR}"
-	sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "${GO_TAR}"
-	rm "${GO_TAR}"
+function install_flatpaks() {
+	info_start "Installing Flatpak packages"
 
-	# Add Go to PATH
-	echo "Adding Go to PATH"
-	GO_PATH="/usr/local/go/bin"
-	ENV_FILE="/etc/environment"
-	if [[ ! -f "$ENV_FILE" ]]; then
-		echo "ERROR: $ENV_FILE does not exist" >&2
-		exit 1
+	if ! command -v flatpak &> /dev/null; then
+		echo "Flatpak is not installed. Trying to install..."
+		$INSTALL_CMD flatpak gnome-software-plugin-flatpak
+		sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+		echo "Flatpak installed. Warning: You may need to log out and log back in or reboot for Flatpak to work properly."
 	fi
-	sudo cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%F_%T)"
-	echo "Backup created: $ENV_FILE.bak.$(date +%F_%T)"
-	CURRENT_PATH=$(grep -E '^PATH=' "$ENV_FILE" | cut -d= -f2- | tr -d '"')
-	if [[ -z "$CURRENT_PATH" ]]; then
-		echo "PATH=\"$GO_PATH\"" | sudo tee -a "$ENV_FILE" >/dev/null
-		echo "Added new PATH with Go bin"
-		info_end "Go installed and PATH updated"
-		return
-	fi
-	if [[ ":$CURRENT_PATH:" == *":$GO_PATH:"* ]]; then
-		echo "Go path already in PATH, nothing to do."
-		info_end "Go installed and PATH updated"
-		return
-	fi
-	NEW_PATH="$CURRENT_PATH:$GO_PATH"
-	sudo sed -i "s|^PATH=.*|PATH=\"$NEW_PATH\"|" "$ENV_FILE"
-	info_end "Go installed and PATH updated"
-}
 
-function install_sublime() {
-	# Install sublime text
-	info_start "Installing Sublime Text"
-	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | sudo tee /etc/apt/keyrings/sublimehq-pub.asc > /dev/null
-	echo -e 'Types: deb\nURIs: https://download.sublimetext.com/\nSuites: apt/stable/\nSigned-By: /etc/apt/keyrings/sublimehq-pub.asc' | sudo tee /etc/apt/sources.list.d/sublime-text.sources
-	$UPDATE_CMD
-	$INSTALL_CMD apt-transport-https
-	
-	$INSTALL_CMD sublime-text
-	info_end "Sublime Text installed"
+	for pkg in "${FLATPAK_PKGS[@]}"; do
+		sudo flatpak install -y flathub "$pkg"
+	done
 
-	# Install Sublime Merge
-	info_start "Installing Sublime Merge"
-	$INSTALL_CMD sublime-merge
-	info_end "Sublime Merge installed"
-}
-
-function install_chrome() {
-	info_start "Installing Google Chrome"
-	wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/google.gpg
-	echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-	$UPDATE_CMD
-
-	$INSTALL_CMD google-chrome-stable
-	info_end "Google Chrome installed"
-}
-
-
-function install_code() {
-	info_start "Installing Visual Studio Code"
-
-	wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-	sudo install -D -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft.gpg
-	rm -f microsoft.gpg
-	printf "Types: deb\nURIs: https://packages.microsoft.com/repos/code\nSuites: stable\nComponents: main\nArchitectures: amd64,arm64,armhf\nSigned-By: /usr/share/keyrings/microsoft.gpg" | sudo tee /etc/apt/sources.list.d/vscode.sources > /dev/null
-	$UPDATE_CMD
-
-	$INSTALL_CMD code
-
-	# VS Code doesn't see /usr/share/fonts (where apt puts them) for some reason
-	# So we need to install fonts to /usr/local/share/fonts
-	echo "Installing fonts..."
-	sudo wget -P /usr/local/share/fonts https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf
-	sudo wget -P /usr/local/share/fonts https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf
-	sudo wget -P /usr/local/share/fonts https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
-	sudo wget -P /usr/local/share/fonts https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
-	# Update font cache
-	fc-cache -fv
-	info_end "Visual Studio Code installed"
-}
-
-function install_dbeaver() {
-	info_start "Installing DBeaver"
-
-	sudo  wget -O /usr/share/keyrings/dbeaver.gpg.key https://dbeaver.io/debs/dbeaver.gpg.key
-	echo "deb [signed-by=/usr/share/keyrings/dbeaver.gpg.key] https://dbeaver.io/debs/dbeaver-ce /" | sudo tee /etc/apt/sources.list.d/dbeaver.list
-	$UPDATE_CMD
-
-	$INSTALL_CMD dbeaver-ce
-	info_end "DBeaver installed"
-}
-
-function install_spotify() {
-	info_start "Installing Spotify"
-	curl -sS https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg
-	echo "deb https://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list
-	$UPDATE_CMD
-
-	$INSTALL_CMD spotify-client
-	info_end "Spotify installed"
-}
-
-function install_docker() {
-	# https://docs.docker.com/engine/install/ubuntu/
-
-	# Add Docker's official GPG key:
-	$UPDATE_CMD
-	$INSTALL_CMD ca-certificates curl
-	sudo install -m 0755 -d /etc/apt/keyrings
-	sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-	sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-	# Add the repository to Apt sources:
-	echo \
-	"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-	$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-	sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-	$UPDATE_CMD
-
-	# Install the latest version
-	$INSTALL_CMD docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+	info_end "Flatpak packages installed"
 }
 
 
@@ -539,9 +448,9 @@ function setup_external_proxy() {
 	fi
 
 	# Set up LXD
-	if ! lxc storage list | grep -q '^default'; then
-		echo "Init lxd"
-    	sudo lxd init --auto
+	if ! lxc storage list | grep -q 'default'; then
+        echo "Required init lxd! Trying to run with auto (you will need to reboot after it)"
+		sudo lxd init --auto
 	fi
 
 	EXTERNAL_PROXY_IP=$(ip -o -4 addr show $(lxc profile show default | grep network | awk '{print $2}') | awk '{print $4}' | cut -d/ -f1 | cut -d\. -f1,2,3 | xargs -I{} echo "{}.$VPN_CONTAINER_IP_HOST")
@@ -577,6 +486,10 @@ function setup_external_proxy() {
 	echo "${SSLOCAL_CONF//EXTERNAL_PROXY_IP/$EXTERNAL_PROXY_IP}" | sudo tee /var/snap/shadowsocks-rust/common/etc/shadowsocks-rust/config.json
 	snap start --enable shadowsocks-rust.sslocal-daemon
 	info_end "Proxy: Client setup [DONE]"
+}
+
+function setup_vpn_namespace() {
+	info_start "Setup VPN namespace with WireGuard"
 }
 
 function setup_firefox(){
@@ -651,6 +564,47 @@ function setup_github() {
 	info_end "Add global git config [DONE]"
 }
 
+
+function append_keybindings() {
+	# Register a custom keybinding in GNOME
+	function create_custom_keybinding() {
+		local CMD="$1"
+		local BIND="$2"
+		local NAME="$3"
+		local KEYBIND_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/${NAME}/"
+
+		# Set the keybinding
+		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" name "$NAME"
+		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" command "$CMD"
+		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" binding "$BIND"
+		# check current
+		# gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings
+	}
+
+	# Append, not overwrite, a custom keybinding to the list of custom keybindings
+	# https://askubuntu.com/questions/1499110/setting-keyboard-shortcuts-in-ubuntu-22-04-with-gsettings-whats-changed
+	function append_new_keybinding(){
+		local name="$1"
+		if [ -z "$(dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings | tr -d '][')" ]; then
+			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$name/']"
+		else
+			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "[$(dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings | tr -d '][') , '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$name/']"
+		fi
+	}
+
+	# Iterate over CUSTOM_LAUNCHERS and create keybindings
+	for name in "${!CUSTOM_LAUNCHERS[@]}"; do
+		IFS='|' read -r CMD BIND <<< "${CUSTOM_LAUNCHERS[$name]}"
+		if [[ -z "$CMD" || -z "$BIND" ]]; then
+			echo "Invalid custom launcher for $name, skipping..."
+			continue
+		fi
+		create_custom_keybinding "$CMD" "$BIND" "$name"
+		append_new_keybinding "$name"
+	done
+}
+
+
 function setup_gnome() {
 	info_start "Setting up GNOME"
 
@@ -661,47 +615,13 @@ function setup_gnome() {
 	fi
 
 	for cmd in "${GSETTINGS_CMDS[@]}"; do
-    	echo "Running: $cmd"
-    	eval "$cmd"
+		echo "Running: $cmd"
+		eval "$cmd"
 	done
 
-	# Custom programs launchers
-	# Custom keybinding for Firefox using variable
-	function set_custom_keybinding() {
-		local CMD="$1"
-		local BIND="$2"
-		local NAME="$3"
-		local KEYBIND_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/${NAME}/"
-
-		# Set the keybinding
-		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" name "$NAME"
-		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" command "$CMD"
-		gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEYBIND_PATH" binding "$BIND"
-	}
-	
-	# https://askubuntu.com/questions/1499110/setting-keyboard-shortcuts-in-ubuntu-22-04-with-gsettings-whats-changed
-	function append_keybinding(){
-		local name="$1"
-		if [ -z "$(dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings | tr -d '][')" ]; then
-  			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$name/']"
-  		else
-			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "[$(dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings | tr -d '][') , '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$name/']"
-		fi
-	}
-
-	for name in "${!CUSTOM_LAUNCHERS[@]}"; do
-		IFS='|' read -r CMD BIND <<< "${CUSTOM_LAUNCHERS[$name]}"
-		if [[ -z "$CMD" || -z "$BIND" ]]; then
-			echo "Invalid custom launcher for $name, skipping..."
-			continue
-		fi
-		set_custom_keybinding "$CMD" "$BIND" "$name"
-		append_keybinding "$name"
-	done
+	append_keybindings
 
 	## Install extensions
-	# blur my shell, clipboard indicator, hide top bar, 
-	# ubuntu appindicator, ubuntu dock, ubuntu tiling assistant are default
 
 	# The gnome-shell-extension-installer script is archived be careful
 	if [ ! -f /usr/bin/gnome-shell-extension-installer ]; then
@@ -754,6 +674,7 @@ function install_special_pkgs() {
 function install_full() {
 	install_pkgs
 	install_special_pkgs
+	install_flatpaks
 	install_snaps # lxd takes reboot and adding to group (see externalProxy)
 }
 
@@ -779,6 +700,12 @@ function main() {
 				;;
 			snaps)
 				install_snaps
+				;;
+			flatpaks)
+				install_flatpaks
+				;;
+			pkgs)
+				install_pkgs
 				;;
 			configs)
 				link_configs
@@ -822,8 +749,8 @@ function main() {
 			gnome)
 				setup_gnome
 				;;
-			pkgs)
-				install_pkgs
+			keybinds)
+				append_keybindings
 				;;
 			check|"" )
 				do_check

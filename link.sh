@@ -30,12 +30,35 @@ check_existing_config() {
             i=$((i+1))
         done
         echo "Backing up $prog_path to $backup_path $1"
-        mv "$prog_path" "$backup_path"
+        MV_CMD="mv \"$prog_path\" \"$backup_path\""
+        # Handle sudo
+        if [ "$SUDO" -eq 1 ]; then
+            MV_CMD="sudo $MV_CMD"
+        fi
+
+        # Eval is safe here, because we check the path
+        if eval $MV_CMD; then
+            echo "Backup: [OK]"
+        else
+            echo "Backup: [ERROR]"
+        fi
+
     }
 
     function replace(){
         echo "Replacing $prog_path"
-        rm -rf "${prog_path:?}"
+        RM_CMD="rm -rf \"${prog_path:?}\""
+        # Handle sudo
+        if [ "$SUDO" -eq 1 ]; then
+          RM_CMD="sudo $RM_CMD"
+        fi
+
+        # Eval is safe here, because we check the path
+        if eval $RM_CMD; then
+            echo "Replacing: [OK]"
+        else
+            echo "Replacing: [ERROR]"
+        fi
     }
 
     case "$ON_EXIST" in
@@ -81,8 +104,12 @@ link_config() {
 
     # Check FROM doesn't exist
     if [ ! -e "$from" ]; then
+	echo "Source $from doesn't exist. Adding home prefix"
+	from="$HOME/$from"
+        if [ ! -e "$from" ]; then
         echo "Source config $from does not exist"
         return 1
+	fi
     fi
 
     # Ensure parent directory for TO exists
@@ -119,8 +146,8 @@ DRY_RUN=0
 SUDO=0
 MODE="default"
 USAGE="Usage: ./link.sh [--skip] [--backup] [--help] [--bin] [--home] [--dry] [--sudo] <from> [<to>]
-  <from>  Source file or directory to link from
-  <to>    Destination file or directory to link to (default: ~/.config/<from>)"
+    <from>  Source file or directory to link from
+    <to>    Destination file or directory to link to (default: ~/.config/<from>)"
 
 # Parse options first
 for arg in "$@"; do
@@ -177,7 +204,19 @@ fi
 
 # Determine the absolute path for FROM
 FROM=$(realpath "$1")
-# If path is not found, it will be handled in link_config
+
+# Check FROM doesn't exist, path not found
+if [ ! -e "$FROM" ]; then
+    echo "Source $1 doesn't exist. Trying to add $HOME prefix"
+    FROM=$(realpath "$HOME/$1")
+
+if [ ! -e "$FROM" ]; then
+    echo "Source config $FROM does not exist"
+    return 1
+else
+    echo "Source $FROM exists"
+    fi
+fi
 
 # If <to> is not specified, default to ~/.config/<from>
 if [ -n "$2" ]; then
@@ -190,7 +229,7 @@ else
             TO="/usr/local/bin/$(basename "$1" | sed 's/\.[^.]*$//')"
         else
             echo "Source $FROM is not executable"
-            return 1
+            exit 1
         fi
     elif [ "$MODE" = "home" ]; then
         TO="$HOME/$(basename "$1")"

@@ -4,7 +4,7 @@ LOFILINK="https://www.youtube.com/live/jfKfPfyJRdk?si=25QycM8bL7aZSu5z"
 
 # Hardcoded proxy. Hello from Russia
 USE_PROXY=false
-PROXY="http://10.243.177.254:3128"
+PROXY="http://127.0.0.1:3128"
 
 # Options for requesters
 YTDL_OPTS=""
@@ -54,7 +54,7 @@ echo "✅ Nice: YouTube responses"
 # Spinner animation
 spinner() {
   local chars="/-\|"
-  local phrases=("Girl's loading..." "Lofiing..." "Loading...")
+  local phrases=("Girl's being loaded..." "Lofiing..." "Loading..." "Preparing the tea...")
   local text=${phrases[$((RANDOM % ${#phrases[@]}))]}
   printf "$text"
   tput civis

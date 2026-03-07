@@ -57,6 +57,7 @@ DO_STOP_DNS=0
 DO_CLEAN=0
 DNS_MODE="direct"   # direct | dnsmasq | resolved
 TOUCH_HOST_RESOLV=0 # set to 1 only in -r mode
+ORIG_ARGV=("$@")
 
 # ─── Colors & logging ────────────────────────────────────────────────────────
 if [[ -t 2 ]] && command -v tput >/dev/null 2>&1; then
@@ -111,7 +112,18 @@ EOF
 reexec_as_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]] && return 0
 
-  exec sudo --preserve-env=DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,XDG_SESSION_TYPE,XDG_CURRENT_DESKTOP,XDG_SESSION_DESKTOP,DESKTOP_SESSION,XDG_DATA_DIRS,DBUS_SESSION_BUS_ADDRESS \
+  local orig_user orig_uid orig_gid orig_home
+  orig_user="${SUDO_USER:-$USER}"
+  orig_uid="$(id -u "$orig_user")"
+  orig_gid="$(id -g "$orig_user")"
+  orig_home="$(getent passwd "$orig_user" | cut -d: -f6)"
+
+  exec env \
+    VPN_ORIG_USER="$orig_user" \
+    VPN_ORIG_UID="$orig_uid" \
+    VPN_ORIG_GID="$orig_gid" \
+    VPN_ORIG_HOME="$orig_home" \
+    sudo --preserve-env=DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,XDG_SESSION_TYPE,XDG_CURRENT_DESKTOP,XDG_SESSION_DESKTOP,DESKTOP_SESSION,XDG_DATA_DIRS,DBUS_SESSION_BUS_ADDRESS,VPN_ORIG_USER,VPN_ORIG_UID,VPN_ORIG_GID,VPN_ORIG_HOME \
     "$0" "$@"
 }
 
@@ -532,14 +544,27 @@ run_test() {
 # ─── GUI runner (snap-friendly; your working base + symlink-safe source) ─────
 run_in_ns_gui() {
   command -v unshare >/dev/null 2>&1 || die "'unshare' not found (install util-linux)"
+  command -v runuser >/dev/null 2>&1 || die "'runuser' not found (install util-linux)"
 
-  local run_user run_uid keep_env
-  run_user="${SUDO_USER:-$USER}"
-  run_uid="$(id -u "$run_user")"
+  local run_user run_uid run_gid run_home
+  run_user="${VPN_ORIG_USER:?missing VPN_ORIG_USER}"
+  run_uid="${VPN_ORIG_UID:?missing VPN_ORIG_UID}"
+  run_gid="${VPN_ORIG_GID:?missing VPN_ORIG_GID}"
+  run_home="${VPN_ORIG_HOME:?missing VPN_ORIG_HOME}"
 
-  keep_env="DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,XDG_SESSION_TYPE,XDG_CURRENT_DESKTOP,XDG_SESSION_DESKTOP,DESKTOP_SESSION,XDG_DATA_DIRS,DBUS_SESSION_BUS_ADDRESS"
-
-  RESOLV_SRC="$DNS_FILE" RUN_USER="$run_user" RUN_UID="$run_uid" KEEP_ENV="$keep_env" \
+  RESOLV_SRC="$DNS_FILE" \
+  RUN_USER="$run_user" RUN_UID="$run_uid" RUN_GID="$run_gid" RUN_HOME="$run_home" \
+  DISPLAY="${DISPLAY:-}" \
+  XAUTHORITY="${XAUTHORITY:-$run_home/.Xauthority}" \
+  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}" \
+  XDG_RUNTIME_DIR="/run/user/$run_uid" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$run_uid/bus" \
+  XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}" \
+  XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-ubuntu:GNOME}" \
+  XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-ubuntu}" \
+  DESKTOP_SESSION="${DESKTOP_SESSION:-ubuntu}" \
+  XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
+  PATH="$PATH" \
   exec ip netns exec "$NS" unshare -m sh -eu -c '
     mount --make-rprivate /
 
@@ -558,42 +583,32 @@ run_in_ns_gui() {
       mount --bind "$SRC" /run/systemd/resolve/resolv.conf 2>/dev/null || true
     fi
 
-    : "${XDG_RUNTIME_DIR:=/run/user/$RUN_UID}"
-    : "${DBUS_SESSION_BUS_ADDRESS:=unix:path=${XDG_RUNTIME_DIR}/bus}"
-    : "${WAYLAND_DISPLAY:=wayland-0}"
-    : "${XDG_SESSION_TYPE:=wayland}"
-
-    export XDG_RUNTIME_DIR
-    export DBUS_SESSION_BUS_ADDRESS
-    export WAYLAND_DISPLAY
-    export XDG_SESSION_TYPE
-
-    test -S "${XDG_RUNTIME_DIR}/bus" || {
-      echo "Error: no session bus socket at ${XDG_RUNTIME_DIR}/bus" >&2
+    test -S "$XDG_RUNTIME_DIR/bus" || {
+      echo "Error: no session bus socket at $XDG_RUNTIME_DIR/bus" >&2
       exit 1
     }
 
-    test -S "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" || {
-      echo "Error: no Wayland socket at ${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" >&2
+    test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" || {
+      echo "Error: no Wayland socket at $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" >&2
       exit 1
     }
 
-    if [ -z "${XAUTHORITY:-}" ]; then
-      export XAUTHORITY="/home/$RUN_USER/.Xauthority"
-    fi
-
-    exec sudo -H -u "$RUN_USER" --preserve-env="$KEEP_ENV" \
-      env DISPLAY="${DISPLAY:-}" \
-          XAUTHORITY="$XAUTHORITY" \
-          WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
-          XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-          XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
-          XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}" \
-          XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-gnome}" \
-          DESKTOP_SESSION="${DESKTOP_SESSION:-gnome}" \
-          XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
-          DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-          "$@"
+    exec runuser -u "$RUN_USER" -- env \
+      HOME="$RUN_HOME" \
+      USER="$RUN_USER" \
+      LOGNAME="$RUN_USER" \
+      DISPLAY="$DISPLAY" \
+      XAUTHORITY="$XAUTHORITY" \
+      WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+      XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+      DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+      XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
+      XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP" \
+      XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" \
+      DESKTOP_SESSION="$DESKTOP_SESSION" \
+      XDG_DATA_DIRS="$XDG_DATA_DIRS" \
+      PATH="$PATH" \
+      "$@"
   ' sh "$@"
 }
 # ─── Arg parsing ─────────────────────────────────────────────────────────────
@@ -624,7 +639,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-reexec_as_root "$@"
+reexec_as_root "${ORIG_ARGV[@]}"
 need_root
 
 if [[ "$DO_CLEAN" -eq 1 ]]; then

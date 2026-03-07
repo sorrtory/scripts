@@ -108,6 +108,13 @@ Examples:
 EOF
 }
 
+reexec_as_root() {
+  [[ "${EUID:-$(id -u)}" -eq 0 ]] && return 0
+
+  exec sudo --preserve-env=DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,XDG_SESSION_TYPE,XDG_CURRENT_DESKTOP,XDG_SESSION_DESKTOP,DESKTOP_SESSION,XDG_DATA_DIRS,DBUS_SESSION_BUS_ADDRESS \
+    "$0" "$@"
+}
+
 need_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "must run as root (use sudo)"
 }
@@ -529,7 +536,8 @@ run_in_ns_gui() {
   local run_user run_uid keep_env
   run_user="${SUDO_USER:-$USER}"
   run_uid="$(id -u "$run_user")"
-  keep_env="DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_SESSION_TYPE,DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR"
+
+  keep_env="DISPLAY,XAUTHORITY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,XDG_SESSION_TYPE,XDG_CURRENT_DESKTOP,XDG_SESSION_DESKTOP,DESKTOP_SESSION,XDG_DATA_DIRS,DBUS_SESSION_BUS_ADDRESS"
 
   RESOLV_SRC="$DNS_FILE" RUN_USER="$run_user" RUN_UID="$run_uid" KEEP_ENV="$keep_env" \
   exec ip netns exec "$NS" unshare -m sh -eu -c '
@@ -540,9 +548,7 @@ run_in_ns_gui() {
 
     test -r "$RESOLV_SRC" || { echo "Error: cannot read $RESOLV_SRC" >&2; exit 1; }
 
-    # If RESOLV_SRC is a symlink, bind-mount the real target file (more reliable for snaps)
     SRC="$(readlink -f "$RESOLV_SRC" 2>/dev/null || echo "$RESOLV_SRC")"
-
     mount --bind --no-canonicalize "$SRC" /etc/resolv.conf
 
     if [ -e /run/systemd/resolve/stub-resolv.conf ]; then
@@ -552,15 +558,44 @@ run_in_ns_gui() {
       mount --bind "$SRC" /run/systemd/resolve/resolv.conf 2>/dev/null || true
     fi
 
-    export XDG_RUNTIME_DIR="/run/user/$RUN_UID"
+    : "${XDG_RUNTIME_DIR:=/run/user/$RUN_UID}"
+    : "${DBUS_SESSION_BUS_ADDRESS:=unix:path=${XDG_RUNTIME_DIR}/bus}"
+    : "${WAYLAND_DISPLAY:=wayland-0}"
+    : "${XDG_SESSION_TYPE:=wayland}"
+
+    export XDG_RUNTIME_DIR
+    export DBUS_SESSION_BUS_ADDRESS
+    export WAYLAND_DISPLAY
+    export XDG_SESSION_TYPE
+
+    test -S "${XDG_RUNTIME_DIR}/bus" || {
+      echo "Error: no session bus socket at ${XDG_RUNTIME_DIR}/bus" >&2
+      exit 1
+    }
+
+    test -S "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" || {
+      echo "Error: no Wayland socket at ${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" >&2
+      exit 1
+    }
+
     if [ -z "${XAUTHORITY:-}" ]; then
       export XAUTHORITY="/home/$RUN_USER/.Xauthority"
     fi
 
-    exec sudo -H -u "$RUN_USER" --preserve-env="$KEEP_ENV" -- "$@"
+    exec sudo -H -u "$RUN_USER" --preserve-env="$KEEP_ENV" \
+      env DISPLAY="${DISPLAY:-}" \
+          XAUTHORITY="$XAUTHORITY" \
+          WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+          XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+          XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
+          XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}" \
+          XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-gnome}" \
+          DESKTOP_SESSION="${DESKTOP_SESSION:-gnome}" \
+          XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
+          DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+          "$@"
   ' sh "$@"
 }
-
 # ─── Arg parsing ─────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -589,6 +624,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+reexec_as_root "$@"
 need_root
 
 if [[ "$DO_CLEAN" -eq 1 ]]; then

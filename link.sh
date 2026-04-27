@@ -183,7 +183,7 @@ for arg in "$@"; do
             echo ""
             echo "ln options:"
             echo "  --sudo   Create symlink with sudo"
-            echo "  --bin    Link <from> to /usr/local/bin/ and cut the extension. Ignored if <to> is passed"
+            echo "  --bin    Link <from> to /usr/local/bin/ and cut the extension. Ignored if <to> is passed. Requires --sudo"
             echo "  --home   Link <from> to $HOME directly (not in .config). Ignored if <to> is passed"
             echo "  --dry    Do not create symlink, only print commands"
             echo "Other options:"
@@ -200,6 +200,15 @@ if [ -z "$1" ]; then
     echo "$USAGE"
     echo "See: ./link.sh --help"
     exit 1
+fi
+
+if [ -L "$1" ]; then
+    echo "Error: <from> is already a symlink"
+    read -p "Do you want to continue? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
 fi
 
 # Determine the absolute path for FROM

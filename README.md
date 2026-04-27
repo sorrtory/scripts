@@ -95,6 +95,17 @@ Redirect from specified websites to the one.
 
 [Unhook](https://unhook.app/) is also needed to be mentioned
 
+#### gpt-exporter.js
+
+[![Install](https://img.shields.io/badge/install-userscript-blue)](https://raw.githubusercontent.com/sorrtory/scripts/refs/heads/master/monkeys/gpt-exporter.user.js)
+
+This script adds an "Export PDF" button to the ChatGPT interface.
+It allows you to export the entire conversation as a PDF file.
+
+Attachments are not supported. Script just [exports text content](https://www.reddit.com/r/OpenAI/comments/1el08sn/comment/n0gp5gu/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button) of the conversation.
+
+
+
 ### Bootstrap
 
 Fresh `ubuntu` setup scripts

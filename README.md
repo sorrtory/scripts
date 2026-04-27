@@ -136,6 +136,8 @@ bash -c "$(wget -qO- https://go.sorrtory.ru/bootstrap.sh)"
 
 #### link.sh
 
+> Consider gnu `stow`
+
 Help to create a symlink to configuration files, etc. \
 Can do backups on filename collision. \
 Create a softlink like "\<from> [\<to>]"
@@ -180,6 +182,17 @@ Used in pair with `get_secrets.sh`
 
 Encrypt the file with a passphrase, share on pastebin as unlisted for 10 mins,
 let to download and delete it.
+
+#### transcode.sh
+
+FFmpeg audio codec sanitizer that allows to play music in ancient car stereo. Saves the nested file structure, has --replace option.
+
+```bash
+./transcode.sh music/ converted/
+
+# Replace originals in-place (3s warning before start)
+./transcode.sh --replace music/
+```
 
 #### download_m3u.sh
 
